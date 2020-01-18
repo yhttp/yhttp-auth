@@ -1,4 +1,4 @@
-#import ujson
+import ujson
 import jwt
 
 
@@ -8,9 +8,7 @@ class JWT:
         self.algorithm = algorithm
 
     def create(self, payload):
-        #data = ujson.loads(payload)
-        import pudb; pudb.set_trace()  # XXX BREAKPOINT
-        data = {}
+        data = ujson.loads(payload)
         return jwt.encode(data, self.secret, algorithm=self.algorithm)
 
     def verify(self, token):
