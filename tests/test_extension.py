@@ -20,9 +20,12 @@ def test_extension(app, story):
     @auth()
     @text
     def get(req):
-        return 'foo'
+        with pytest.raises(AttributeError):
+            req.identity.invalidattribute
 
-    with story(app, headers={'Authorization': token.dump()}):
+        return req.identity.name
+
+    with story(app, headers={'Authorization': token.dump(dict(name='foo'))}):
         assert status == 200
         assert response.text == 'foo'
 
