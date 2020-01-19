@@ -18,7 +18,7 @@ class Create(SubCommand):
     def __call__(self, args):
         settings = args.application.settings.jwt
         jwt = JWT(settings.secret, settings.algorithm)
-        print(jwt.dump(json.loads(args.payload)))
+        print(jwt.dump(json.loads(args.payload)).decode())
 
 
 class JWTCLI(SubCommand):
