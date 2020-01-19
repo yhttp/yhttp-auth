@@ -1,11 +1,11 @@
 import pytest
-from bddrest import status, response
+from bddrest import status, response, given
 from yhttp import text
 
 from yhttp.extensions.auth import install, JWT
 
 
-def test_extension(app, story):
+def test_extension(app, story, when):
     secret = 'foobarbaz'
     token = JWT(secret)
     auth = install(app)
@@ -28,6 +28,12 @@ def test_extension(app, story):
     with story(app, headers={'Authorization': token.dump(dict(name='foo'))}):
         assert status == 200
         assert response.text == 'foo'
+
+        when(headers=given - 'Authorization')
+        assert status == 401
+
+        when(headers={'Authorization': 'mAlfoRMeD'})
+        assert status == 401
 
 
 def test_exceptions(app):

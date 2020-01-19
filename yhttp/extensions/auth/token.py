@@ -1,6 +1,8 @@
 import ujson
 import jwt
 
+from yhttp import statuses
+
 
 class Identity:
     def __init__(self, payload):
@@ -23,14 +25,20 @@ class JWT:
         return jwt.encode(payload, self.secret, algorithm=self.algorithm)
 
     def verify(self, token):
-        return Identity(
-            jwt.decode(token, self.secret, algorithms=[self.algorithm])
-        )
+        try:
+            return Identity(
+                jwt.decode(token, self.secret, algorithms=[self.algorithm])
+            )
+        except jwt.DecodeError:
+            raise statuses.unauthorized()
 
     def get(self, req):
         return req.headers.get('Authorization')
 
     def verifyrequest(self, req):
         t = self.get(req)
+        if t is None:
+            raise statuses.unauthorized()
+
         return self.verify(t)
 
