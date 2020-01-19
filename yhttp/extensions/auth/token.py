@@ -14,6 +14,16 @@ class Identity:
         except KeyError:
             raise AttributeError()
 
+    def authorize(self, roles):
+        if 'roles' not in self.payload:
+            raise statuses.forbidden()
+
+        for r in roles:
+            if r in self.roles:
+                return r
+
+        raise statuses.forbidden()
+
 
 class JWT:
     def __init__(self, secret, algorithm='HS256'):
