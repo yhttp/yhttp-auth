@@ -2,14 +2,25 @@ import ujson
 import jwt
 
 
+class Identity:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __getattr__(self, attr):
+        try:
+            return self.payload[attr]
+        except KeyError:
+            raise AttributeError()
+
+
 class JWT:
-    def __init__(self, secret, algorithm):
+    def __init__(self, secret, algorithm='HS256'):
         self.secret = secret
         self.algorithm = algorithm
 
-    def create(self, payload):
-        data = ujson.loads(payload)
-        return jwt.encode(data, self.secret, algorithm=self.algorithm)
+    def dump(self, payload=None):
+        payload = payload or {}
+        return jwt.encode(payload, self.secret, algorithm=self.algorithm)
 
     def verify(self, token):
         return Identity(

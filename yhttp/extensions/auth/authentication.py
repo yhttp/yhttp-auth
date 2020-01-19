@@ -8,7 +8,8 @@ def authenticate(app, roles=None):
             req.identity = app.jwt.verifyrequest(req)
 
             return handler(req, *args, **kw)
-
+        
+        return wrapper
     return decorator
 
 
