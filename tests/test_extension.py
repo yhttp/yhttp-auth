@@ -1,6 +1,6 @@
 import pytest
 from bddrest import status, response, given
-from yhttp import text
+from yhttp import text, json
 
 from yhttp.extensions.auth import install, JWT
 
@@ -25,6 +25,12 @@ def test_extension(app, story, when):
 
         return req.identity.name
 
+    @app.route('/admin')
+    @auth(roles='admin, god')
+    @json
+    def get(req):
+        return req.identity.roles
+
     with story(app, headers={'Authorization': token.dump(dict(name='foo'))}):
         assert status == 200
         assert response.text == 'foo'
@@ -34,6 +40,22 @@ def test_extension(app, story, when):
 
         when(headers={'Authorization': 'mAlfoRMeD'})
         assert status == 401
+
+    with story(app, '/admin', headers={
+        'Authorization': token.dump(dict(name='foo', roles=['admin']))
+    }):
+        assert status == 200
+        assert response.json == ['admin']
+
+        when(headers={
+            'Authorization': token.dump(dict(name='foo', roles=['editor']))
+        })
+        assert status == 403
+
+        when(headers={
+            'Authorization': token.dump()
+        })
+        assert status == 403
 
 
 def test_exceptions(app):
