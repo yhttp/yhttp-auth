@@ -18,7 +18,7 @@ with open(
 
 dependencies = [
     'pyjwt',
-    'yhttp >= 2.2, < 3',
+    'yhttp >= 2.3.4, < 3',
 ]
 
 
