@@ -16,5 +16,3 @@ def authenticate(app, roles=None):
 
         return wrapper
     return decorator
-
-

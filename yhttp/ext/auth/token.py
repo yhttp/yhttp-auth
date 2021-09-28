@@ -1,4 +1,3 @@
-import ujson
 import jwt
 
 from yhttp import statuses
@@ -51,4 +50,3 @@ class JWT:
             raise statuses.unauthorized()
 
         return self.verify(t)
-

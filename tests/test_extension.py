@@ -2,7 +2,7 @@ import pytest
 from bddrest import status, response, given, when
 from yhttp import text, json
 
-from yhttp.extensions.auth import install, JWT
+from yhttp.ext.auth import install, JWT
 
 
 def test_extension(app, Given):
@@ -59,10 +59,9 @@ def test_extension(app, Given):
 
 
 def test_exceptions(app):
-    db = install(app)
+    install(app)
     if 'secret' in app.settings.jwt:
         del app.settings.jwt['secret']
 
     with pytest.raises(ValueError):
         app.ready()
-

@@ -1,7 +1,7 @@
 from bddcli import Given, Application as CLIApplication, status, stderr, \
     stdout, when
 from yhttp import Application
-from yhttp.extensions.auth import install
+from yhttp.ext.auth import install
 
 
 app = Application()

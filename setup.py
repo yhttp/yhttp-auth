@@ -1,13 +1,13 @@
-
 from setuptools import setup
 import os.path
 import re
+
 
 # reading package's version (same way sqlalchemy does)
 with open(
     os.path.join(
         os.path.dirname(__file__),
-        'yhttp/extensions/auth/', '__init__.py'
+        'yhttp/ext/auth/', '__init__.py'
     )
 ) as v_file:
     package_version = \
@@ -18,7 +18,7 @@ with open(
 
 dependencies = [
     'pyjwt',
-    'yhttp >= 2.3.4, < 3',
+    'yhttp >= 3.0.3',
 ]
 
 
@@ -32,7 +32,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',  # This is important!
     install_requires=dependencies,
-    packages=['yhttp.extensions.auth'],
+    packages=['yhttp.ext.auth'],
     license='MIT',
     classifiers=[
         'Environment :: Console',
@@ -49,5 +49,5 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        ]
-    )
+    ]
+)

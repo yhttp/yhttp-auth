@@ -19,11 +19,10 @@ def install(app):
             settings.secret
         except AttributeError:
             raise ValueError(
-                'Please provide jwt.secret configuration entry, ' \
+                'Please provide jwt.secret configuration entry, '
                 'for example: foobarbaz'
             )
 
         app.jwt = JWT(settings.secret, settings.algorithm)
 
     return functools.partial(authenticate, app)
-

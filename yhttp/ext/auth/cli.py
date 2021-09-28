@@ -4,7 +4,6 @@ import json
 from .token import JWT
 
 
-
 class Create(SubCommand):
     __command__ = 'create'
     __aliases__ = ['c']
@@ -14,11 +13,10 @@ class Create(SubCommand):
         ),
     ]
 
-
     def __call__(self, args):
         settings = args.application.settings.jwt
         jwt = JWT(settings.secret, settings.algorithm)
-        print(jwt.dump(json.loads(args.payload)).decode())
+        print(jwt.dump(json.loads(args.payload)))
 
 
 class JWTCLI(SubCommand):
@@ -26,4 +24,3 @@ class JWTCLI(SubCommand):
     __arguments__ = [
         Create,
     ]
-
