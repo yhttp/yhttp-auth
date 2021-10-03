@@ -34,9 +34,6 @@ jwt:
 @auth()
 @text
 def get(req):
-    with pytest.raises(AttributeError):
-        req.identity.invalidattribute
-
     return req.identity.name
 
 
