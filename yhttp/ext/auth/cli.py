@@ -14,8 +14,8 @@ class Create(SubCommand):
     ]
 
     def __call__(self, args):
-        settings = args.application.settings.jwt
-        jwt = JWT(settings.secret, settings.algorithm)
+        settings = args.application.settings.auth
+        jwt = JWT(settings.jwt.secret, settings.jwt.algorithm)
         print(jwt.dump(json.loads(args.payload)))
 
 

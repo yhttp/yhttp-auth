@@ -6,8 +6,9 @@ from yhttp.ext.auth import install
 
 app = Application()
 app.settings.merge('''
-jwt:
-  secret: foobarbaz
+auth:
+  jwt:
+    secret: foobarbaz
 ''')
 authorize = install(app)
 

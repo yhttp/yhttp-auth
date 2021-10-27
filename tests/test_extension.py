@@ -5,14 +5,15 @@ from yhttp import text, json
 from yhttp.ext.auth import install, JWT
 
 
-def test_extension(app, Given):
+def test_authorization_token(app, Given, redis):
     secret = 'foobarbaz'
-    token = JWT(secret)
     auth = install(app)
     app.settings.merge(f'''
-    jwt:
-      secret: {secret}
+    auth:
+      jwt:
+        secret: {secret}
     ''')
+    token = JWT(secret)
 
     app.ready()
 
@@ -23,7 +24,7 @@ def test_extension(app, Given):
         with pytest.raises(AttributeError):
             req.identity.invalidattribute
 
-        return req.identity.name
+        return req.identity.id
 
     @app.route('/admin')
     @auth(roles='admin, god')
@@ -31,7 +32,7 @@ def test_extension(app, Given):
     def get(req):
         return req.identity.roles
 
-    with Given(headers={'Authorization': token.dump(dict(name='foo'))}):
+    with Given(headers={'Authorization': token.dump(dict(id='foo'))}):
         assert status == 200
         assert response.text == 'foo'
 
@@ -42,26 +43,84 @@ def test_extension(app, Given):
         assert status == 401
 
     with Given('/admin', headers={
-        'Authorization': token.dump(dict(name='foo', roles=['admin']))
+        'Authorization': token.dump(dict(id='foo', roles=['admin']))
     }):
         assert status == 200
         assert response.json == ['admin']
 
+        app.jwt.preventlogin('foo')
+        when()
+        assert status == 401
+
+        app.jwt.permitlogin('foo')
+        when()
+        assert status == 200
+
         when(headers={
-            'Authorization': token.dump(dict(name='foo', roles=['editor']))
+            'Authorization': token.dump(dict(id='foo', roles=['editor']))
         })
         assert status == 403
 
         when(headers={
             'Authorization': token.dump()
         })
+        assert status == 401
+
+        when(headers={
+            'Authorization': token.dump(dict(id='foo'))
+        })
         assert status == 403
 
 
 def test_exceptions(app):
     install(app)
-    if 'secret' in app.settings.jwt:
-        del app.settings.jwt['secret']
+    if 'secret' in app.settings.auth.jwt:
+        del app.settings.auth.jwt['secret']
 
     with pytest.raises(ValueError):
         app.ready()
+
+
+def test_cookie_token(app, Given, redis):
+    secret = 'foobarbaz'
+    auth = install(app)
+    token = None
+    app.settings.merge(f'''
+    auth:
+      jwt:
+        secret: {secret}
+    ''')
+
+    app.ready()
+
+    @app.route()
+    @text
+    def login(req):
+        nonlocal token
+        token = app.jwt.setcookie(req, dict(id='foo'))
+        return token
+
+    @app.route()
+    @auth()
+    @text
+    def get(req):
+        return req.identity.id
+
+    with Given():
+        assert status == 401
+
+        when(verb='LOGIN')
+        assert status == 200
+        assert response.headers['Set-Cookie'] == f'yhttp-auth={response.text}'
+
+    with Given(headers={'Cookie': f'yhttp-auth={token}'}):
+        assert status == 200
+        assert response.text == 'foo'
+
+        app.jwt.preventlogin('foo')
+        when()
+        assert status == 401
+
+        app.jwt.permitlogin('foo')
+        when()
+        assert status == 200

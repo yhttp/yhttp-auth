@@ -18,6 +18,7 @@ with open(
 
 dependencies = [
     'pyjwt',
+    'redis',
     'yhttp >= 3.0.3',
 ]
 

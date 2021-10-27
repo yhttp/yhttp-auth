@@ -1,10 +1,15 @@
 import jwt
+import redis
 
 from yhttp import statuses
 
 
+FORBIDDEN_KEY = 'yhttp-auth-forbidden'
+
+
 class Identity:
     def __init__(self, payload):
+        assert payload['id'] is not None
         self.payload = payload
 
     def __getattr__(self, attr):
@@ -25,9 +30,15 @@ class Identity:
 
 
 class JWT:
-    def __init__(self, secret, algorithm='HS256'):
+    redis = None
+
+    def __init__(self, secret, algorithm='HS256', cookiekey='yhttp-token',
+                 redisinfo=None):
         self.secret = secret
         self.algorithm = algorithm
+        self.cookiekey = cookiekey
+        if redisinfo:
+            self.redis = redis.Redis(**redisinfo)
 
     def dump(self, payload=None):
         payload = payload or {}
@@ -35,18 +46,40 @@ class JWT:
 
     def verify(self, token):
         try:
-            return Identity(
+            identity = Identity(
                 jwt.decode(token, self.secret, algorithms=[self.algorithm])
             )
-        except jwt.DecodeError:
+
+        except (KeyError, jwt.DecodeError):
             raise statuses.unauthorized()
 
-    def get(self, req):
+        if self.redis is not None and \
+                self.redis.sismember(FORBIDDEN_KEY, identity.id):
+            raise statuses.unauthorized()
+
+        return identity
+
+    def get_requesttoken(self, req):
+        if self.cookiekey in req.cookies:
+            return req.cookies[self.cookiekey].value
+
         return req.headers.get('Authorization')
 
     def verifyrequest(self, req):
-        t = self.get(req)
-        if t is None:
+        token = self.get_requesttoken(req)
+        if token is None:
             raise statuses.unauthorized()
 
-        return self.verify(t)
+        identity = self.verify(token)
+        return identity
+
+    def preventlogin(self, id):
+        self.redis.sadd(FORBIDDEN_KEY, id)
+
+    def permitlogin(self, id):
+        self.redis.srem(FORBIDDEN_KEY, id)
+
+    def setcookie(self, req, payload):
+        token = self.dump(payload)
+        req.cookies[self.cookiekey] = token
+        return token
