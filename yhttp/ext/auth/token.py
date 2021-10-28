@@ -1,7 +1,9 @@
 import jwt
 import redis
 
+from pymlconf import MergableDict
 from yhttp import statuses
+from yhttp.lazyattribute import lazyattribute
 
 
 FORBIDDEN_KEY = 'yhttp-auth-forbidden'
@@ -31,14 +33,43 @@ class Identity:
 
 class JWT:
     redis = None
+    default_settings = MergableDict('''
+      redis:
+        host: localhost
+        port: 6379
+        db: 0
 
-    def __init__(self, secret, algorithm='HS256', cookiekey='yhttp-token',
-                 redisinfo=None):
-        self.secret = secret
-        self.algorithm = algorithm
-        self.cookiekey = cookiekey
-        if redisinfo:
-            self.redis = redis.Redis(**redisinfo)
+      jwt:
+        algorithm: HS256
+        secret: foobar
+
+      cookie:
+        key: yhttp-auth
+        token:
+          maxage: 2592000  # 1 Month
+          domain:
+
+    ''')
+
+    def __init__(self, settings=None):
+        if settings:
+            self.settings = settings
+        else:
+            self.settings = MergableDict(self.default_settings)
+
+        self.redis = redis.Redis(**self.settings.redis)
+
+    @lazyattribute
+    def secret(self):
+        return self.settings.jwt.secret
+
+    @lazyattribute
+    def algorithm(self):
+        return self.settings.jwt.algorithm
+
+    @lazyattribute
+    def cookiekey(self):
+        return self.settings.cookie.key
 
     def dump(self, payload=None):
         payload = payload or {}
@@ -82,4 +113,9 @@ class JWT:
     def setcookie(self, req, payload):
         token = self.dump(payload)
         req.cookies[self.cookiekey] = token
-        return token
+        entry = req.cookies[self.cookiekey]
+        entry['Max-Age'] = self.settings.cookie.token.maxage
+        entry['Secure'] = True
+        entry['HttpOnly'] = True
+        entry['SameSite'] = 'Strict'
+        return entry

@@ -13,7 +13,7 @@ def test_authorization_token(app, Given, redis):
       jwt:
         secret: {secret}
     ''')
-    token = JWT(secret)
+    token = JWT(app.settings.auth)
 
     app.ready()
 
@@ -97,8 +97,9 @@ def test_cookie_token(app, Given, redis):
     @text
     def login(req):
         nonlocal token
-        token = app.jwt.setcookie(req, dict(id='foo'))
-        return token
+        entry = app.jwt.setcookie(req, dict(id='foo'))
+        token = entry.value
+        return entry.value
 
     @app.route()
     @auth()
@@ -111,7 +112,10 @@ def test_cookie_token(app, Given, redis):
 
         when(verb='LOGIN')
         assert status == 200
-        assert response.headers['Set-Cookie'] == f'yhttp-auth={response.text}'
+        assert response.headers['Set-Cookie'] == \
+            f'yhttp-auth={response.text}; ' \
+            'HttpOnly; Max-Age=2592000; ' \
+            'SameSite=Strict; Secure'
 
     with Given(headers={'Cookie': f'yhttp-auth={token}'}):
         assert status == 200

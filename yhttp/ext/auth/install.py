@@ -7,19 +7,8 @@ from .token import JWT
 
 def install(app):
     app.cliarguments.append(JWTCLI)
-    app.settings.merge('''
-    auth:
-      redis:
-        host: localhost
-        port: 6379
-        db: 0
-
-      jwt:
-        algorithm: HS256
-
-      cookie:
-        key: yhttp-auth
-    ''')
+    app.settings.merge('auth: {}')
+    app.settings['auth'].merge(JWT.default_settings)
 
     @app.when
     def ready(app):
@@ -32,11 +21,6 @@ def install(app):
                 'for example: foobarbaz'
             )
 
-        app.jwt = JWT(
-            settings.jwt.secret,
-            algorithm=settings.jwt.algorithm,
-            cookiekey=settings.cookie.key,
-            redisinfo=settings.redis,
-        )
+        app.jwt = JWT(settings)
 
     return functools.partial(authenticate, app)

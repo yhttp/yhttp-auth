@@ -19,8 +19,8 @@ def test_jwtcli():
         assert status == 0
         assert stderr == ''
 
-        when('jwt create \'{"foo": "bar"}\'')
-        print(stderr)
+        when('jwt create \'{"id": "foo"}\'')
+        assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
