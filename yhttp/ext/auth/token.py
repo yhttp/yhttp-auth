@@ -46,6 +46,8 @@ class JWT:
       cookie:
         key: yhttp-auth
         token:
+          secure: true
+          httponly: true
           maxage: 2592000  # 1 Month
           domain:
 
@@ -108,15 +110,20 @@ class JWT:
         self.redis.srem(FORBIDDEN_KEY, id)
 
     def setcookie(self, req, payload):
+        settings = self.settings.cookie.token
         token = self.dump(payload)
         req.cookies[self.cookiekey] = token
         entry = req.cookies[self.cookiekey]
-        entry['Max-Age'] = self.settings.cookie.token.maxage
-        entry['Secure'] = True
-        entry['HttpOnly'] = True
-        domain = self.settings.cookie.token.domain
-        if domain:
-            entry['Domain'] = domain
+        entry['Max-Age'] = settings.maxage
+
+        if settings.secure:
+            entry['Secure'] = settings.secure
+
+        if settings.httponly:
+            entry['HttpOnly'] = settings.httponly
+
+        if settings.domain:
+            entry['Domain'] = settings.domain
         # Seems not supported by simple cookie.
         # entry['SameSite'] = 'Strict'
         return entry
