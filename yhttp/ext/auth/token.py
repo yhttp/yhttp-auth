@@ -116,5 +116,5 @@ class JWT:
         entry['HttpOnly'] = True
         entry['Domain'] = self.settings.cookie.token.domain
         # Seems not supported by simple cookie.
-        #entry['SameSite'] = 'Strict'
+        # entry['SameSite'] = 'Strict'
         return entry
