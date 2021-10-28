@@ -2,4 +2,4 @@ from .cli import JWTCLI
 from .install import install
 from .token import JWT
 
-__version__ = '2.0.4'
+__version__ = '2.0.5'

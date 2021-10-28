@@ -89,6 +89,9 @@ def test_cookie_token(app, Given, redis):
     auth:
       jwt:
         secret: {secret}
+      cookie:
+        token:
+          domain: example.com
     ''')
 
     app.ready()
@@ -114,8 +117,9 @@ def test_cookie_token(app, Given, redis):
         assert status == 200
         assert response.headers['Set-Cookie'] == \
             f'yhttp-auth={response.text}; ' \
+            'Domain=example.com; ' \
             'HttpOnly; Max-Age=2592000; ' \
-            'SameSite=Strict; Secure'
+            'Secure'
 
     with Given(headers={'Cookie': f'yhttp-auth={token}'}):
         assert status == 200
