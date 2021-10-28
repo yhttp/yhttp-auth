@@ -115,4 +115,5 @@ class JWT:
         entry['Secure'] = True
         entry['HttpOnly'] = True
         entry['SameSite'] = 'Strict'
+        entry['Domain'] = self.settings.cookie.token.domain
         return entry
