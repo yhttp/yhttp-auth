@@ -114,6 +114,7 @@ class JWT:
         entry['Max-Age'] = self.settings.cookie.token.maxage
         entry['Secure'] = True
         entry['HttpOnly'] = True
-        entry['SameSite'] = 'Strict'
         entry['Domain'] = self.settings.cookie.token.domain
+        # Seems not supported by simple cookie.
+        #entry['SameSite'] = 'Strict'
         return entry
