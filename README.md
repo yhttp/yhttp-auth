@@ -25,24 +25,44 @@ from yhttp.ext.auth import install as auth_install
 app = Application()
 auth = auth_install(app)
 app.settings.merge(f'''
-jwt:
-  secret: 12345678
+auth:
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
+
+  token:
+    algorithm: HS256
+    secret: foobar
+
+  refresh:
+    key: yhttp-refresh-token
+    algorithm: HS256
+    secret: quxquux
+    secure: true
+    httponly: true
+    maxage: 2592000  # 1 Month
+    domain: example.com
 ''')
 
 
-@app.route()
-@auth()
-@text
-def get(req):
-    return req.identity.name
+@app.route('/reftokens')
+@yhttp.statuscode(yhttp.statuses.created)
+def create(req):
+    app.auth.set_refreshtoken(req, 'alice', dict(baz='qux'))
 
+@app.route('/tokens')
+@yhttp.statuscode(yhttp.statuses.created)
+@yhttp.text
+def refresh(req):
+    reftoken = app.auth.verify_refreshtoken(req)
+    return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
 
 @app.route('/admin')
 @auth(roles='admin, god')
-@json
+@yhttp.text
 def get(req):
     return req.identity.roles
-
 
 app.ready()
 ```
@@ -66,5 +86,5 @@ setup(
 ```
 
 ```bash
-myapp jwt --help
+myapp auth --help
 ```

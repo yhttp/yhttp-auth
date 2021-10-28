@@ -5,25 +5,20 @@ from yhttp.ext.auth import install
 
 
 app = Application()
-app.settings.merge('''
-auth:
-  jwt:
-    secret: foobarbaz
-''')
 authorize = install(app)
 
 
 def test_jwtcli():
     cliapp = CLIApplication('example', 'tests.test_cli:app.climain')
-    with Given(cliapp, 'jwt --help'):
+    with Given(cliapp, 'auth --help'):
         assert status == 0
         assert stderr == ''
 
-        when('jwt create \'{"id": "foo"}\'')
+        when('auth create \'{"id": "foo"}\'')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
 
 if __name__ == '__main__':
-    app.climain(['jwt', 'c', '{"foo": "bar"}'])
+    app.climain(['auth', 'c', '{"foo": "bar"}'])

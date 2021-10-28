@@ -1,5 +1,5 @@
-from .cli import JWTCLI
+from .cli import AuthenticatorCLI
 from .install import install
-from .token import JWT
+from .authentication import Authenticator
 
-__version__ = '2.0.6'
+__version__ = '3.0.0'

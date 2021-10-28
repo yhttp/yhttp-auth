@@ -1,7 +1,7 @@
 from easycli import SubCommand, Argument
 import json
 
-from .token import JWT
+from .authentication import Authenticator
 
 
 class Create(SubCommand):
@@ -15,12 +15,12 @@ class Create(SubCommand):
 
     def __call__(self, args):
         settings = args.application.settings.auth
-        jwt = JWT(settings)
+        jwt = Authenticator(settings)
         print(jwt.dump(json.loads(args.payload)))
 
 
-class JWTCLI(SubCommand):
-    __command__ = 'jwt'
+class AuthenticatorCLI(SubCommand):
+    __command__ = 'auth'
     __arguments__ = [
         Create,
     ]

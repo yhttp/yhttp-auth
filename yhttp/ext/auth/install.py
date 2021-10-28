@@ -1,26 +1,16 @@
 import functools
 
-from .authentication import authenticate
-from .cli import JWTCLI
-from .token import JWT
+from .authentication import Authenticator, authenticate
+from .cli import AuthenticatorCLI
 
 
 def install(app):
-    app.cliarguments.append(JWTCLI)
+    app.cliarguments.append(AuthenticatorCLI)
     app.settings.merge('auth: {}')
-    app.settings['auth'].merge(JWT.default_settings)
+    app.settings['auth'].merge(Authenticator.default_settings)
 
     @app.when
     def ready(app):
-        settings = app.settings.auth
-        try:
-            settings.jwt.secret
-        except AttributeError:
-            raise ValueError(
-                'Please provide jwt.secret configuration entry, '
-                'for example: foobarbaz'
-            )
-
-        app.jwt = JWT(settings)
+        app.auth = Authenticator(app.settings.auth)
 
     return functools.partial(authenticate, app)
