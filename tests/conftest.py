@@ -1,5 +1,4 @@
 import functools
-from unittest.mock import patch
 
 import bddrest
 import pytest
