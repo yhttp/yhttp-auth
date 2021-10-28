@@ -52,11 +52,8 @@ class JWT:
     ''')
 
     def __init__(self, settings=None):
-        if settings:
-            self.settings = settings
-        else:
-            self.settings = MergableDict(self.default_settings)
-
+        self.settings = settings if settings else \
+            MergableDict(self.default_settings)
         self.redis = redis.Redis(**self.settings.redis)
 
     @lazyattribute
