@@ -15,16 +15,12 @@ jobs:
   test:
     name: Pytest
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.6', '3.7', '3.8']
-
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.8 
     - name: Install dependencies
       run: |
         sudo apt install python3-dev libpq-dev
@@ -46,7 +42,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
