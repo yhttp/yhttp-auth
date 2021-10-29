@@ -25,6 +25,12 @@ def test_refreshtoken(app, Given, redis):
         reftoken = app.auth.verify_refreshtoken(req)
         return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
 
+    @app.route('/tokens')
+    @auth()
+    @yhttp.text
+    def delete(req):
+        app.auth.delete_refreshtoken(req)
+
     @app.route('/admin')
     @auth()
     @yhttp.text
@@ -35,7 +41,7 @@ def test_refreshtoken(app, Given, redis):
         assert status == 201
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-refresh-token=')
-        assert cookie.endswith('HttpOnly; Max-Age=2592000; Secure')
+        assert cookie.endswith('HttpOnly; Max-Age=2592000; Path=/; Secure')
 
     cookie = cookie.split(';')[0]
     with Given('/tokens', verb='REFRESH'):
@@ -54,7 +60,7 @@ def test_refreshtoken(app, Given, redis):
         assert status == 401
 
     with Given('/admin', headers={
-        'Authorization': token
+        'Authorization': f'Bearer {token}'
     }):
         assert status == 200
         assert response.text == 'alice'
@@ -66,3 +72,13 @@ def test_refreshtoken(app, Given, redis):
         app.auth.permitlogin('alice')
         when()
         assert status == 200
+
+    # Logout
+    with Given('/tokens', verb='DELETE'):
+        assert status == 401
+
+        when(headers={'Authorization': f'Bearer {token}'})
+        assert status == 200
+        cookie = response.headers['Set-Cookie']
+        assert cookie == 'yhttp-refresh-token=""; ' \
+            'expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0'

@@ -52,6 +52,7 @@ class Authenticator:
         httponly: true
         maxage: 2592000  # 1 Month
         domain:
+        path: /
 
     ''')
 
@@ -76,6 +77,12 @@ class Authenticator:
     def refresh_algorithm(self):
         return self.settings.refresh.algorithm
 
+    def delete_refreshtoken(self, req):
+        req.cookies[self.refresh_cookiekey] = ''
+        entry = req.cookies[self.refresh_cookiekey]
+        entry['Max-Age'] = 0
+        entry['Expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+
     def set_refreshtoken(self, req, id, attrs=None):
         settings = self.settings.refresh
         token = self.dump_refreshtoken(id, attrs)
@@ -93,6 +100,9 @@ class Authenticator:
 
         if settings.domain:
             entry['Domain'] = settings.domain
+
+        if settings.path:
+            entry['Path'] = settings.path
         # TODO: Seems not supported by simple cookie.
         # entry['SameSite'] = 'Strict'
         return entry
@@ -163,11 +173,12 @@ class Authenticator:
 
     def verify_token(self, req):
         token = req.headers.get('Authorization')
-        if token is None:
+
+        if token is None or not token.startswith('Bearer '):
             raise statuses.unauthorized()
 
         try:
-            identity = Identity(self.decode_token(token))
+            identity = Identity(self.decode_token(token[7:]))
 
         except (KeyError, jwt.DecodeError):
             raise statuses.unauthorized()
