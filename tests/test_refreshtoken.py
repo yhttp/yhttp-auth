@@ -41,7 +41,10 @@ def test_refreshtoken(app, Given, redis):
         assert status == 201
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-refresh-token=')
-        assert cookie.endswith('HttpOnly; Max-Age=2592000; Path=/; Secure')
+        assert cookie.endswith(
+            'Domain=example.com; HttpOnly; Max-Age=2592000; Path=/reftokens; '
+            'SameSite=Strict; Secure'
+        )
 
     cookie = cookie.split(';')[0]
     with Given('/tokens', verb='REFRESH'):
@@ -80,5 +83,7 @@ def test_refreshtoken(app, Given, redis):
         when(headers={'Authorization': f'Bearer {token}'})
         assert status == 200
         cookie = response.headers['Set-Cookie']
-        assert cookie == 'yhttp-refresh-token=""; ' \
-            'expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0'
+        assert cookie == \
+            'yhttp-refresh-token=""; Domain=example.com; ' \
+            'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/tokens; ' \
+            'SameSite=Strict; Secure'

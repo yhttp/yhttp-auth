@@ -52,7 +52,8 @@ class Authenticator:
         httponly: true
         maxage: 2592000  # 1 Month
         domain:
-        path: /
+        path:
+        samesite: Strict
 
     ''')
 
@@ -77,34 +78,40 @@ class Authenticator:
     def refresh_algorithm(self):
         return self.settings.refresh.algorithm
 
+    def _set_refreshtoken(self, req, token):
+        settings = self.settings.refresh
+
+        # Set cookie
+        entry = req.response.setcookie(self.refresh_cookiekey, token)
+
+        if settings.secure:
+            entry['secure'] = settings.secure
+
+        if settings.httponly:
+            entry['httponly'] = settings.httponly
+
+        if settings.domain:
+            entry['domain'] = settings.domain
+
+        if settings.samesite:
+            entry['samesite'] = settings.samesite
+
+        entry['path'] = settings.path if settings.path else req.path
+        return entry
+
     def delete_refreshtoken(self, req):
-        req.cookies[self.refresh_cookiekey] = ''
-        entry = req.cookies[self.refresh_cookiekey]
-        entry['Max-Age'] = 0
-        entry['Expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+        entry = self._set_refreshtoken(req, '')
+        entry['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+        del entry['max-age']
+        return entry
 
     def set_refreshtoken(self, req, id, attrs=None):
         settings = self.settings.refresh
         token = self.dump_refreshtoken(id, attrs)
 
         # Set cookie
-        req.cookies[self.refresh_cookiekey] = token
-        entry = req.cookies[self.refresh_cookiekey]
-        entry['Max-Age'] = settings.maxage
-
-        if settings.secure:
-            entry['Secure'] = settings.secure
-
-        if settings.httponly:
-            entry['HttpOnly'] = settings.httponly
-
-        if settings.domain:
-            entry['Domain'] = settings.domain
-
-        if settings.path:
-            entry['Path'] = settings.path
-        # TODO: Seems not supported by simple cookie.
-        # entry['SameSite'] = 'Strict'
+        entry = self._set_refreshtoken(req, token)
+        entry['max-age'] = settings.maxage
         return entry
 
     def dump_refreshtoken(self, id, attrs=None):
