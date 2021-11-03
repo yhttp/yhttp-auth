@@ -1,5 +1,6 @@
 import jwt
 import redis
+from datetime import datetime, timedelta, timezone
 import functools
 
 from pymlconf import MergableDict
@@ -43,6 +44,8 @@ class Authenticator:
       token:
         algorithm: HS256
         secret: foobar
+        maxage: 3600 # seconds
+        leeway: 10 # seconds
 
       refresh:
         key: yhttp-refresh-token
@@ -51,6 +54,7 @@ class Authenticator:
         secure: true
         httponly: true
         maxage: 2592000  # 1 Month
+        leeway: 10 # seconds
         domain:
         path:
         samesite: Strict
@@ -73,6 +77,10 @@ class Authenticator:
     @lazyattribute
     def refresh_secret(self):
         return self.settings.refresh.secret
+
+    @lazyattribute
+    def refresh_leeway(self):
+        return self.settings.refresh.leeway
 
     @lazyattribute
     def refresh_algorithm(self):
@@ -114,13 +122,24 @@ class Authenticator:
         entry['max-age'] = settings.maxage
         return entry
 
+    def _exp(self, seconds):
+        # TODO: Stupid explicit is better than comprehensive implicit.
+        return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
+
     def dump_refreshtoken(self, id, attrs=None):
-        payload = {'id': id, 'refresh': True}
+        payload = {
+            'id': id,
+            'refresh': True,
+            'exp': self._exp(self.settings.refresh.maxage)
+        }
         if attrs:
             payload.update(attrs)
 
-        return jwt.encode(payload, self.refresh_secret,
-                          algorithm=self.refresh_algorithm)
+        return jwt.encode(
+            payload,
+            self.refresh_secret,
+            algorithm=self.refresh_algorithm
+        )
 
     def verify_refreshtoken(self, req):
         if self.refresh_cookiekey not in req.cookies:
@@ -131,13 +150,14 @@ class Authenticator:
             identity = Identity(jwt.decode(
                 token,
                 self.refresh_secret,
+                leeway=self.refresh_leeway,
                 algorithms=[self.refresh_algorithm]
             ))
 
-        except (KeyError, jwt.DecodeError):
+        except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
             raise statuses.unauthorized()
 
-        self.checkstate(identity.id)
+        self.check_blacklist(identity.id)
         return identity
 
     #########
@@ -149,13 +169,21 @@ class Authenticator:
         return self.settings.token.secret
 
     @lazyattribute
+    def leeway(self):
+        return self.settings.token.leeway
+
+    @lazyattribute
     def algorithm(self):
         return self.settings.token.algorithm
 
     def dump(self, id, attrs=None):
-        payload = {'id': id}
+        payload = {
+            'id': id,
+            'exp': self._exp(self.settings.token.maxage)
+        }
         if attrs:
             payload.update(attrs)
+
         return jwt.encode(payload, self.secret, algorithm=self.algorithm)
 
     def dump_from_refreshtoken(self, refresh, attrs=None):
@@ -164,9 +192,11 @@ class Authenticator:
 
         if attrs:
             payload.update(attrs)
+
+        payload['exp'] = self._exp(self.settings.token.maxage)
         return jwt.encode(payload, self.secret, algorithm=self.algorithm)
 
-    def checkstate(self, userid):
+    def check_blacklist(self, userid):
         if self.redis is not None and \
                 self.redis.sismember(FORBIDDEN_KEY, userid):
             raise statuses.unauthorized()
@@ -175,6 +205,7 @@ class Authenticator:
         return jwt.decode(
             token,
             self.secret,
+            leeway=self.leeway,
             algorithms=[self.algorithm]
         )
 
@@ -186,11 +217,10 @@ class Authenticator:
 
         try:
             identity = Identity(self.decode_token(token[7:]))
-
-        except (KeyError, jwt.DecodeError):
+        except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
             raise statuses.unauthorized()
 
-        self.checkstate(identity.id)
+        self.check_blacklist(identity.id)
         return identity
 
     def preventlogin(self, id):

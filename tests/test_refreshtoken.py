@@ -1,9 +1,11 @@
 from bddrest import status, response, when
+from freezegun import freeze_time
 import yhttp
 
 from yhttp.ext.auth import install
 
 
+@freeze_time('2020-01-01')
 def test_refreshtoken(app, Given, redis):
     auth = install(app)
     app.settings.merge('''
@@ -56,8 +58,13 @@ def test_refreshtoken(app, Given, redis):
         assert app.auth.decode_token(token) == {
             'id': 'alice',
             'baz': 'qux',
-            'foo': 'bar'
+            'foo': 'bar',
+            'exp': 1577840400,
         }
+
+        with freeze_time('2020-02-01'):
+            when(headers={'Cookie': cookie})
+            assert status == 401
 
         when(headers={'Cookie': 'yhttp-refresh-token=Malforrmed'})
         assert status == 401
@@ -67,6 +74,11 @@ def test_refreshtoken(app, Given, redis):
     }):
         assert status == 200
         assert response.text == 'alice'
+
+        # One hour + 10 seconds leeway
+        with freeze_time('2020-01-01 01:00:11'):
+            when()
+            assert status == 401
 
         app.auth.preventlogin('alice')
         when()
