@@ -5,7 +5,6 @@ import yhttp
 from yhttp.ext.auth import install
 
 
-@freeze_time('2020-01-01')
 def test_csrftoken(app, Given, redis):
     install(app)
     token = None

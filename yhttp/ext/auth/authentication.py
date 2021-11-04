@@ -46,8 +46,8 @@ class Authenticator:
       token:
         algorithm: HS256
         secret: foobar
-        maxage: 3600  # seconds
-        leeway: 10  # seconds
+        maxage: 3600 # seconds
+        leeway: 10 # seconds
 
       refresh:
         key: yhttp-refresh-token
@@ -55,8 +55,8 @@ class Authenticator:
         secret: quxquux
         secure: true
         httponly: true
-        maxage: 2592000  # 1 Month
-        leeway: 10  # seconds
+        maxage: 2592000 # 1 Month
+        leeway: 10 # seconds
         domain:
         path:
         samesite: Strict
@@ -65,10 +65,17 @@ class Authenticator:
         key: yhttp-csrf-token
         secure: true
         httponly: true
-        maxage: 60  # 1 Minute
+        maxage: 60 # 1 Minute
         samesite: Strict
         domain:
         path:
+
+      oauth2:
+        state:
+          algorithm: HS256
+          secret: quxquux
+          maxage: 60 # 1 Minute
+          leeway: 10 # seconds
     ''')
 
     def __init__(self, settings=None):
