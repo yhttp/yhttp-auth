@@ -1,6 +1,5 @@
 import os
 import jwt
-import time
 import hashlib
 import functools
 from datetime import datetime, timedelta, timezone
@@ -12,7 +11,6 @@ from yhttp.lazyattribute import lazyattribute
 
 
 FORBIDDEN_REDIS_KEY = 'yhttp-auth-forbidden'
-CSRF_REDIS_KEY = 'yhttp-csrf'
 
 
 class Identity:
@@ -72,6 +70,12 @@ class Authenticator:
         domain:
         path:
 
+      oauth2:
+        state:
+          algorithm: HS256
+          secret: quxquux
+          maxage: 60  # 1 Minute
+          leeway: 10 # seconds
 
     ''')
 
@@ -79,6 +83,61 @@ class Authenticator:
         self.settings = settings if settings else \
             MergableDict(self.default_settings)
         self.redis = redis.Redis(**self.settings.redis)
+
+    ##########
+    # OAuth2 #
+    ##########
+
+    @lazyattribute
+    def oauth2_state_maxage(self):
+        return self.settings.oauth2.state.maxage
+
+    @lazyattribute
+    def oauth2_state_secret(self):
+        return self.settings.oauth2.state.secret
+
+    @lazyattribute
+    def oauth2_state_algorithm(self):
+        return self.settings.oauth2.state.algorithm
+
+    @lazyattribute
+    def oauth2_state_leeway(self):
+        return self.settings.oauth2.state.leeway
+
+    def dump_oauth2_state(self, req, redirect_url, attrs=None):
+        payload = {
+            'exp': self._exp(self.oauth2_state_maxage),
+            'redurl': redirect_url,
+            'id': self.create_csrftoken(req)
+        }
+        if attrs:
+            payload.update(attrs)
+
+        return jwt.encode(
+            payload,
+            self.oauth2_state_secret,
+            algorithm=self.oauth2_state_algorithm
+        )
+
+    def decode_oauth2_state(self, state):
+        return jwt.decode(
+            state,
+            self.oauth2_state_secret,
+            leeway=self.oauth2_state_leeway,
+            algorithms=[self.oauth2_state_algorithm]
+        )
+
+    def verify_oauth2_state(self, req, state):
+        if state is None:
+            raise statuses.unauthorized()
+
+        try:
+            identity = Identity(self.decode_oauth2_state(state))
+        except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
+            raise statuses.unauthorized()
+
+        self.verify_csrftoken(req, identity.id)
+        return identity
 
     ########
     # CSRF #
@@ -114,7 +173,6 @@ class Authenticator:
         token = hashlib.sha256(os.urandom(1024)).hexdigest()
 
         self.set_csrfcookie(req, token)
-        self.redis.hset(CSRF_REDIS_KEY, token, time.time())
         return token
 
     def verify_csrftoken(self, req, token):
@@ -136,6 +194,10 @@ class Authenticator:
     @lazyattribute
     def refresh_secret(self):
         return self.settings.refresh.secret
+
+    @lazyattribute
+    def refresh_maxage(self):
+        return self.settings.refresh.maxage
 
     @lazyattribute
     def refresh_leeway(self):
@@ -189,7 +251,7 @@ class Authenticator:
         payload = {
             'id': id,
             'refresh': True,
-            'exp': self._exp(self.settings.refresh.maxage)
+            'exp': self._exp(self.refresh_maxage)
         }
         if attrs:
             payload.update(attrs)
@@ -224,26 +286,34 @@ class Authenticator:
     #########
 
     @lazyattribute
-    def secret(self):
+    def token_secret(self):
         return self.settings.token.secret
 
     @lazyattribute
-    def leeway(self):
+    def token_maxage(self):
+        return self.settings.token.maxage
+
+    @lazyattribute
+    def token_leeway(self):
         return self.settings.token.leeway
 
     @lazyattribute
-    def algorithm(self):
+    def token_algorithm(self):
         return self.settings.token.algorithm
 
     def dump(self, id, attrs=None):
         payload = {
             'id': id,
-            'exp': self._exp(self.settings.token.maxage)
+            'exp': self._exp(self.token_maxage)
         }
         if attrs:
             payload.update(attrs)
 
-        return jwt.encode(payload, self.secret, algorithm=self.algorithm)
+        return jwt.encode(
+            payload,
+            self.token_secret,
+            algorithm=self.token_algorithm
+        )
 
     def dump_from_refreshtoken(self, refresh, attrs=None):
         payload = refresh.payload.copy()
@@ -252,8 +322,12 @@ class Authenticator:
         if attrs:
             payload.update(attrs)
 
-        payload['exp'] = self._exp(self.settings.token.maxage)
-        return jwt.encode(payload, self.secret, algorithm=self.algorithm)
+        payload['exp'] = self._exp(self.token_maxage)
+        return jwt.encode(
+            payload,
+            self.token_secret,
+            algorithm=self.token_algorithm
+        )
 
     def check_blacklist(self, userid):
         # FIXME: use redis hash, hset, hget
@@ -264,9 +338,9 @@ class Authenticator:
     def decode_token(self, token):
         return jwt.decode(
             token,
-            self.secret,
-            leeway=self.leeway,
-            algorithms=[self.algorithm]
+            self.token_secret,
+            leeway=self.token_leeway,
+            algorithms=[self.token_algorithm]
         )
 
     def verify_token(self, req):
