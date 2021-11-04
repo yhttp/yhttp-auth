@@ -76,7 +76,6 @@ class Authenticator:
           secret: quxquux
           maxage: 60  # 1 Minute
           leeway: 10  # seconds
-
     ''')
 
     def __init__(self, settings=None):
