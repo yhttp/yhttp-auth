@@ -1,14 +1,18 @@
+import os
 import jwt
-import redis
-from datetime import datetime, timedelta, timezone
+import time
+import hashlib
 import functools
+from datetime import datetime, timedelta, timezone
 
+import redis
 from pymlconf import MergableDict
 from yhttp import statuses
 from yhttp.lazyattribute import lazyattribute
 
 
-FORBIDDEN_KEY = 'yhttp-auth-forbidden'
+FORBIDDEN_REDIS_KEY = 'yhttp-auth-forbidden'
+CSRF_REDIS_KEY = 'yhttp-csrf'
 
 
 class Identity:
@@ -59,12 +63,67 @@ class Authenticator:
         path:
         samesite: Strict
 
+      csrf:
+        key: yhttp-csrf-token
+        secure: true
+        httponly: true
+        maxage: 60  # 1 Minute
+        samesite: Strict
+        domain:
+        path:
+
+
     ''')
 
     def __init__(self, settings=None):
         self.settings = settings if settings else \
             MergableDict(self.default_settings)
         self.redis = redis.Redis(**self.settings.redis)
+
+    ########
+    # CSRF #
+    ########
+
+    @lazyattribute
+    def csrf_cookiekey(self):
+        return self.settings.csrf.key
+
+    def set_csrfcookie(self, req, token):
+        settings = self.settings.csrf
+
+        # Set cookie
+        entry = req.response.setcookie(self.csrf_cookiekey, token)
+
+        if settings.secure:
+            entry['secure'] = settings.secure
+
+        if settings.httponly:
+            entry['httponly'] = settings.httponly
+
+        if settings.domain:
+            entry['domain'] = settings.domain
+
+        if settings.samesite:
+            entry['samesite'] = settings.samesite
+
+        entry['path'] = settings.path if settings.path else req.path
+        return entry
+
+    def create_csrftoken(self, req):
+        # Create a state token to prevent request forgery.
+        token = hashlib.sha256(os.urandom(1024)).hexdigest()
+
+        self.set_csrfcookie(req, token)
+        self.redis.hset(CSRF_REDIS_KEY, token, time.time())
+        return token
+
+    def verify_csrftoken(self, req, token):
+        ctoken = req.cookies.get(self.csrf_cookiekey)
+        if ctoken is None:
+            raise statuses.forbidden()
+
+        if ctoken.value != token:
+            raise statuses.forbidden()
 
     ##########
     # Refresh
@@ -197,8 +256,9 @@ class Authenticator:
         return jwt.encode(payload, self.secret, algorithm=self.algorithm)
 
     def check_blacklist(self, userid):
+        # FIXME: use redis hash, hset, hget
         if self.redis is not None and \
-                self.redis.sismember(FORBIDDEN_KEY, userid):
+                self.redis.sismember(FORBIDDEN_REDIS_KEY, userid):
             raise statuses.unauthorized()
 
     def decode_token(self, token):
@@ -224,10 +284,10 @@ class Authenticator:
         return identity
 
     def preventlogin(self, id):
-        self.redis.sadd(FORBIDDEN_KEY, id)
+        self.redis.sadd(FORBIDDEN_REDIS_KEY, id)
 
     def permitlogin(self, id):
-        self.redis.srem(FORBIDDEN_KEY, id)
+        self.redis.srem(FORBIDDEN_REDIS_KEY, id)
 
 
 def authenticate(app, roles=None):
