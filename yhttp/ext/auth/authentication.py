@@ -61,21 +61,6 @@ class Authenticator:
         path:
         samesite: Strict
 
-      csrf:
-        key: yhttp-csrf-token
-        secure: true
-        httponly: true
-        maxage: 60 # 1 Minute
-        samesite: Strict
-        domain:
-        path:
-
-      oauth2:
-        state:
-          algorithm: HS256
-          secret: quxquux
-          maxage: 60 # 1 Minute
-          leeway: 10 # seconds
     ''')
 
     def __init__(self, settings=None):
