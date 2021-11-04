@@ -79,8 +79,7 @@ class Authenticator:
     ''')
 
     def __init__(self, settings=None):
-        self.settings = settings if settings else \
-            MergableDict(self.default_settings)
+        self.settings = settings if settings else self.default_settings
         self.redis = redis.Redis(**self.settings.redis)
 
     ##########
