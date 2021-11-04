@@ -1,5 +1,4 @@
 from bddrest import status, response, when, given
-from freezegun import freeze_time
 import yhttp
 
 from yhttp.ext.auth import install
