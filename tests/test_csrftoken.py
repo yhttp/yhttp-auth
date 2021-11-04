@@ -10,13 +10,7 @@ def test_csrftoken(app, Given, redis):
     app.settings.merge('''
     auth:
       csrf:
-        key: yhttp-csrf-token
-        secure: true
-        httponly: true
-        maxage: 60 # 1 Minute
-        samesite: Strict
         domain: example.com
-        path:
     ''')
     app.ready()
 

@@ -10,20 +10,7 @@ def test_oauth2_state(app, Given, redis):
     app.settings.merge('''
     auth:
       csrf:
-        key: yhttp-csrf-token
-        secure: true
-        httponly: true
-        maxage: 60 # 1 Minute
-        samesite: Strict
         domain: example.com
-        path:
-
-      oauth2:
-        state:
-          algorithm: HS256
-          secret: quxquux
-          maxage: 60 # 1 Minute
-          leeway: 10 # seconds
     ''')
     app.ready()
 
