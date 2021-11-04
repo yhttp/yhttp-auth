@@ -46,8 +46,8 @@ class Authenticator:
       token:
         algorithm: HS256
         secret: foobar
-        maxage: 3600 # seconds
-        leeway: 10 # seconds
+        maxage: 3600  # seconds
+        leeway: 10  # seconds
 
       refresh:
         key: yhttp-refresh-token
@@ -56,7 +56,7 @@ class Authenticator:
         secure: true
         httponly: true
         maxage: 2592000  # 1 Month
-        leeway: 10 # seconds
+        leeway: 10  # seconds
         domain:
         path:
         samesite: Strict
@@ -75,7 +75,7 @@ class Authenticator:
           algorithm: HS256
           secret: quxquux
           maxage: 60  # 1 Minute
-          leeway: 10 # seconds
+          leeway: 10  # seconds
 
     ''')
 
