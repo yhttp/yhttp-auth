@@ -13,6 +13,13 @@ def test_oauth2_state(app, Given, redis):
     auth:
       csrf:
         domain: example.com
+
+      oauth2:
+        state:
+          algorithm: HS256
+          secret: quxquux
+          maxage: 60  # 1 Minute
+          leeway: 10  # seconds
     ''')
     app.ready()
 
