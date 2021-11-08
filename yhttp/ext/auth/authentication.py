@@ -164,6 +164,9 @@ class Authenticator:
         if settings.samesite:
             entry['samesite'] = settings.samesite
 
+        if settings.maxage:
+            entry['max-age'] = settings.maxage
+
         entry['path'] = settings.path if settings.path else req.path
         return entry
 

@@ -31,6 +31,7 @@ def test_oauth2_state(app, Given, redis):
         assert state is not None
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-csrf-token=')
+        assert 'Max-Age' in cookie
 
     cookie = cookie.split(';')[0]
     with Given(f'/blue?state={state}', headers={'Cookie': cookie}):

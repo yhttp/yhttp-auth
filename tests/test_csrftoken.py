@@ -29,7 +29,8 @@ def test_csrftoken(app, Given, redis):
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-csrf-token=')
         assert cookie.endswith(
-            'Domain=example.com; HttpOnly; Path=/red; SameSite=Strict; Secure'
+            'Domain=example.com; HttpOnly; Max-Age=60; Path=/red; '
+            'SameSite=Strict; Secure'
         )
 
         when('/blue')
