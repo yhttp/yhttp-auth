@@ -96,6 +96,6 @@ def test_refreshtoken(app, Given, redis):
         assert status == 200
         cookie = response.headers['Set-Cookie']
         assert cookie == \
-            'yhttp-refresh-token=deleted; Domain=example.com; ' \
+            'yhttp-refresh-token=""; Domain=example.com; ' \
             'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/tokens; ' \
             'SameSite=Strict; Secure'

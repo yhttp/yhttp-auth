@@ -231,7 +231,7 @@ class Authenticator:
         return entry
 
     def delete_refreshtoken(self, req):
-        entry = self._set_refreshtoken(req, 'deleted')
+        entry = self._set_refreshtoken(req, '')
         entry['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
         return entry
 
