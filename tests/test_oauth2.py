@@ -24,6 +24,7 @@ def test_oauth2_state(app, Given, redis):
     def get(req, *, state=None):
         state_ = app.auth.verify_oauth2_state(req, state)
         assert state_.bar == 'baz'
+        assert state_.redurl == '/foo'
 
     with Given('/red'):
         assert status == 200
