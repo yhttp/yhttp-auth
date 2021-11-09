@@ -34,11 +34,11 @@ def test_csrftoken(app, Given, redis):
         )
 
         when('/blue')
-        assert status == 403
+        assert status == 401
 
         cookie = cookie.split(';')[0]
         when('/blue', headers={'Cookie': cookie})
-        assert status == 403
+        assert status == 401
 
         when(f'/blue?token={token}', headers={'Cookie': cookie})
         assert status == 200

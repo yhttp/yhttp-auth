@@ -180,10 +180,10 @@ class Authenticator:
     def verify_csrftoken(self, req, token):
         ctoken = req.cookies.get(self.csrf_cookiekey)
         if ctoken is None:
-            raise statuses.forbidden()
+            raise statuses.unauthorized()
 
         if ctoken.value != token:
-            raise statuses.forbidden()
+            raise statuses.unauthorized()
 
     ##########
     # Refresh
