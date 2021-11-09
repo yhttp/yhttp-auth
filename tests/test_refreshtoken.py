@@ -28,6 +28,14 @@ def test_refreshtoken(app, Given, redis):
         return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
 
     @app.route('/tokens')
+    @yhttp.json
+    def read(req):
+        reftoken = app.auth.read_refreshtoken(req)
+        if reftoken is None:
+            return {}
+        return reftoken.payload
+
+    @app.route('/tokens')
     @auth()
     @yhttp.text
     def delete(req):
@@ -68,6 +76,24 @@ def test_refreshtoken(app, Given, redis):
 
         when(headers={'Cookie': 'yhttp-refresh-token=Malforrmed'})
         assert status == 401
+
+        when(verb='READ')
+        assert status == 200
+        assert response.json == {}
+
+        when(headers={'Cookie': 'yhttp-refresh-token=Malformed'}, verb='READ')
+        assert status == 200
+        assert response.json == {}
+
+        with freeze_time('2020-02-01'):
+            when(headers={'Cookie': cookie}, verb='READ')
+            assert status == 200
+            assert response.json == {
+                'baz': 'qux',
+                'exp': 1580428800,
+                'id': 'alice',
+                'refresh': True
+            }
 
     with Given('/admin', headers={
         'Authorization': f'Bearer {token}'

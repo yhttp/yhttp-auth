@@ -282,6 +282,22 @@ class Authenticator:
         self.check_blacklist(identity.id)
         return identity
 
+    def read_refreshtoken(self, req):
+        if self.refresh_cookiekey not in req.cookies:
+            return None
+
+        token = req.cookies[self.refresh_cookiekey].value
+        try:
+            identity = Identity(jwt.decode(
+                token,
+                options={"verify_signature": False},
+            ))
+
+        except (KeyError, jwt.DecodeError):
+            return None
+
+        return identity
+
     #########
     # Token #
     #########
