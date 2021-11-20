@@ -24,7 +24,7 @@ class Identity:
         except KeyError:
             raise AttributeError()
 
-    def authorize(self, roles):
+    def authorize(self, *roles):
         if 'roles' not in self.payload:
             raise statuses.forbidden()
 
@@ -390,7 +390,7 @@ def authenticate(app, roles=None):
         def wrapper(req, *args, **kw):
             req.identity = app.auth.verify_token(req)
             if roles is not None:
-                req.identity.authorize(roles)
+                req.identity.authorize(*roles)
 
             return handler(req, *args, **kw)
 
