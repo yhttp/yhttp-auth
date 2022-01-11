@@ -11,6 +11,9 @@ class Create(SubCommand):
         Argument(
             'payload', default='', nargs='?', help='example: {"foo": "bar"}'
         ),
+        Argument(
+            '--maxage', type=int, help='Token maxage in seconds.'
+        ),
     ]
 
     def __call__(self, args):
@@ -21,7 +24,7 @@ class Create(SubCommand):
         else:
             payload = ''
 
-        print(jwt.dump(payload))
+        print(jwt.dump(payload, maxage=args.maxage))
 
 
 class AuthenticatorCLI(SubCommand):

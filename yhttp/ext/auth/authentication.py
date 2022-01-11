@@ -245,7 +245,6 @@ class Authenticator:
         return entry
 
     def _exp(self, seconds):
-        # TODO: Stupid explicit is better than comprehensive implicit.
         return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
 
     def dump_refreshtoken(self, id, attrs=None):
@@ -318,10 +317,10 @@ class Authenticator:
     def token_algorithm(self):
         return self.settings.token.algorithm
 
-    def dump(self, id, attrs=None):
+    def dump(self, id, attrs=None, maxage=None):
         payload = {
             'id': id,
-            'exp': self._exp(self.token_maxage)
+            'exp': self._exp(maxage or self.token_maxage)
         }
         if attrs:
             payload.update(attrs)

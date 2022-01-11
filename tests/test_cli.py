@@ -25,6 +25,12 @@ def test_jwtcli():
         assert status == 0
         assert len(stdout.split('.')) == 3
 
+        # Max age
+        when('auth create --maxage 10')
+        assert stderr == ''
+        assert status == 0
+        assert len(stdout.split('.')) == 3
+
 
 if __name__ == '__main__':
     app.climain(['auth', 'c', '{"foo": "bar"}'])
