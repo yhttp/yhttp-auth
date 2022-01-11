@@ -16,7 +16,12 @@ class Create(SubCommand):
     def __call__(self, args):
         settings = args.application.settings.auth
         jwt = Authenticator(settings)
-        print(jwt.dump(json.loads(args.payload)))
+        if args.payload:
+            payload = json.loads(args.payload)
+        else:
+            payload = ''
+
+        print(jwt.dump(payload))
 
 
 class AuthenticatorCLI(SubCommand):

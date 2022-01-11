@@ -19,6 +19,12 @@ def test_jwtcli():
         assert status == 0
         assert len(stdout.split('.')) == 3
 
+        # Without token
+        when('auth create')
+        assert stderr == ''
+        assert status == 0
+        assert len(stdout.split('.')) == 3
+
 
 if __name__ == '__main__':
     app.climain(['auth', 'c', '{"foo": "bar"}'])
