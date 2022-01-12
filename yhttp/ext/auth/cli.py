@@ -9,6 +9,9 @@ class Create(SubCommand):
     __aliases__ = ['c']
     __arguments__ = [
         Argument(
+            'id', help='example: alice'
+        ),
+        Argument(
             'payload', default='', nargs='?', help='example: {"foo": "bar"}'
         ),
         Argument(
@@ -24,7 +27,7 @@ class Create(SubCommand):
         else:
             payload = ''
 
-        print(jwt.dump(payload, maxage=args.maxage))
+        print(jwt.dump(args.id, payload, maxage=args.maxage))
 
 
 class AuthenticatorCLI(SubCommand):

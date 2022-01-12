@@ -14,22 +14,27 @@ def test_jwtcli():
         assert status == 0
         assert stderr == ''
 
-        when('auth create \'{"id": "foo"}\'')
+        # Without Payload
+        when('auth create foo')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
-        # Without token
-        when('auth create')
+        # With Payload
+        when('auth create foo \'{"roles": ["admin"]}\'')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # Max age
-        when('auth create --maxage 10')
+        when('auth create --maxage 10 foo')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
+
+        # Without id
+        when('auth create')
+        assert status == 2
 
 
 if __name__ == '__main__':
