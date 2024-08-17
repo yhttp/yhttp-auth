@@ -1,22 +1,47 @@
-PIP = pip
-TEST_DIR = tests
-PRJ = yhttp.ext.auth
+HERE = $(shell readlink -f `dirname .`)
+PKG = $(shell basename $(HERE))
+VENVPATH ?= $(HOME)/.virtualenvs/$(PKG)
 PYTEST_FLAGS = -v
+TEST_DIR = tests
+PY ?= $(VENVPATH)/bin/python3
+PIP ?= $(VENVPATH)/bin/pip3
+PYTEST ?= $(VENVPATH)/bin/pytest
+COVERAGE ?= $(VENVPATH)/bin/coverage
+FLAKE8 ?= $(VENVPATH)/bin/flake8
+TWINE ?= $(VENVPATH)/bin/twine
+
+
+ifdef F
+  TEST_FILTER = $(F)
+else
+  TEST_FILTER = $(TEST_DIR)
+endif
 
 
 .PHONY: test
 test:
-	pytest $(PYTEST_FLAGS) $(TEST_DIR)
+	$(PYTEST) $(PYTEST_FLAGS) $(TEST_FILTER)
 
 
 .PHONY: cover
 cover:
-	pytest $(PYTEST_FLAGS) --cov=$(PRJ) $(TEST_DIR)
+	$(PYTEST) $(PYTEST_FLAGS) --cov=$(PKG) $(TEST_FILTER)
+
+
+.PHONY: cover-html
+cover-html: cover
+	$(COVERAGE) html
+	@echo "Browse htmlcov/index.html for the covearge report"
 
 
 .PHONY: lint
 lint:
-	flake8
+	$(FLAKE8)
+
+
+.PHONY: venv
+venv:
+	python3 -m venv $(VENVPATH)
 
 
 .PHONY: env
@@ -25,15 +50,58 @@ env:
 	$(PIP) install -e .
 
 
+.PHONY: env-doc
+env-doc:
+	$(PIP) install -r requirements-doc.txt
+	$(PIP) install -e .
+
+
+.PHONY: env-ci
+env-ci:
+	$(PIP) install -r requirements-ci.txt
+	$(PIP) install -e .
+
+
+.PHONY: venv-delete
+venv-delete: clean
+	rm -rf $(VENVPATH)
+
+
 .PHONY: sdist
 sdist:
-	python3 setup.py sdist
+	$(PY) -m build --sdist
 
 
 .PHONY: bdist
-bdist:
-	python3 setup.py bdist_egg
+wheel:
+	$(PY) -m build --wheel
 
 
 .PHONY: dist
-dist: sdist bdist
+dist: sdist wheel
+
+
+.PHONY: pypi
+pypi: dist
+	$(TWINE) upload dist/*.gz dist/*.whl
+
+
+.PHONY: clean
+clean:
+	rm -rf dist/*
+	rm -rf build/*
+
+
+.PHONY: doc
+doc:
+	cd sphinx; make html
+
+
+.PHONY: doctest
+doctest:
+	cd sphinx; make doctest
+
+
+.PHONY: livedoc
+livedoc:
+	cd sphinx; make livehtml
