@@ -8,6 +8,8 @@ jobs:
   deploypypi:
     name: Deploy to PyPI
     runs-on: ubuntu-latest
+    env:
+      VENVPATH: /usr 
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
