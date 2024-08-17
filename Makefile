@@ -1,6 +1,7 @@
 HERE = $(shell readlink -f `dirname .`)
-PKG = $(shell basename $(HERE))
-VENVPATH ?= $(HOME)/.virtualenvs/$(PKG)
+PRJ = $(shell basename $(HERE))
+PKG = yhttp.ext.auth
+VENVPATH ?= $(HOME)/.virtualenvs/$(PRJ)
 PYTEST_FLAGS = -v
 TEST_DIR = tests
 PY ?= $(VENVPATH)/bin/python3
