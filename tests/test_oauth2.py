@@ -1,5 +1,5 @@
 from bddrest import status, response, when, given
-import yhttp
+import yhttp.core as y
 
 from yhttp.ext.auth import install
 
@@ -20,7 +20,7 @@ def test_oauth2_state(app, Given, redis):
         state = app.auth.dump_oauth2_state(req, '/foo', dict(bar='baz'))
 
     @app.route('/blue')
-    @yhttp.text
+    @y.text
     def get(req, *, state=None):
         state_ = app.auth.verify_oauth2_state(req, state)
         assert state_.bar == 'baz'

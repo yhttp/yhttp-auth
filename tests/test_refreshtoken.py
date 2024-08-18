@@ -1,6 +1,6 @@
 from bddrest import status, response, when
 from freezegun import freeze_time
-import yhttp
+import yhttp.core as y
 
 from yhttp.ext.auth import install
 
@@ -16,19 +16,19 @@ def test_refreshtoken(app, Given, redis):
     app.ready()
 
     @app.route('/reftokens')
-    @yhttp.statuscode(yhttp.statuses.created)
+    @y.statuscode(y.statuses.created)
     def create(req):
         app.auth.set_refreshtoken(req, 'alice', dict(baz='qux'))
 
     @app.route('/tokens')
-    @yhttp.statuscode(yhttp.statuses.created)
-    @yhttp.text
+    @y.statuscode(y.statuses.created)
+    @y.text
     def refresh(req):
         reftoken = app.auth.verify_refreshtoken(req)
         return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
 
     @app.route('/tokens')
-    @yhttp.json
+    @y.json
     def read(req):
         reftoken = app.auth.read_refreshtoken(req)
         if reftoken is None:
@@ -37,13 +37,13 @@ def test_refreshtoken(app, Given, redis):
 
     @app.route('/tokens')
     @auth()
-    @yhttp.text
+    @y.text
     def delete(req):
         app.auth.delete_refreshtoken(req)
 
     @app.route('/admin')
     @auth()
-    @yhttp.text
+    @y.text
     def get(req):
         return req.identity.id
 

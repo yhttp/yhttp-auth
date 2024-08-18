@@ -1,6 +1,6 @@
 import pytest
 from bddrest import status, response, given, when
-from yhttp import text, json
+from yhttp.core import text, json
 
 from yhttp.ext.auth import install
 

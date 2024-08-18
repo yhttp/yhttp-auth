@@ -2,8 +2,8 @@ import functools
 
 import bddrest
 import pytest
-from yhttp_devutils.fixtures import redis
-from yhttp import Application
+from yhttp.dev.fixtures import redis
+from yhttp.core import Application
 
 
 @pytest.fixture

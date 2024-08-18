@@ -1,5 +1,5 @@
 from bddrest import status, response, when
-import yhttp
+import yhttp.core as y
 
 from yhttp.ext.auth import install
 
@@ -20,7 +20,7 @@ def test_csrftoken(app, Given, redis):
         token = app.auth.create_csrftoken(req)
 
     @app.route('/blue')
-    @yhttp.text
+    @y.text
     def get(req, *, token=None):
         app.auth.verify_csrftoken(req, token)
 

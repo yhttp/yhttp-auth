@@ -1,6 +1,7 @@
-from setuptools import setup
 import os.path
 import re
+
+from setuptools import setup, find_namespace_packages
 
 
 # reading package's version (same way sqlalchemy does)
@@ -20,7 +21,7 @@ dependencies = [
     'pyjwt',
     'hiredis',
     'redis',
-    'yhttp >= 4.1.4',
+    'yhttp >= 5',
 ]
 
 
@@ -33,9 +34,13 @@ setup(
     description='A very micro http framework.',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',  # This is important!
-    install_requires=dependencies,
-    packages=['yhttp.ext.auth'],
     license='MIT',
+    install_requires=dependencies,
+    packages=find_namespace_packages(
+        where='.',
+        include=['yhttp.ext.auth'],
+        exclude=['tests'],
+    ),
     classifiers=[
         'Environment :: Console',
         'Environment :: Web Environment',

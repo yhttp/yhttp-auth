@@ -6,8 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import redis
 from pymlconf import MergableDict
-from yhttp import statuses
-from yhttp.lazyattribute import lazyattribute
+from yhttp.core import statuses, lazyattribute
 
 
 FORBIDDEN_REDIS_KEY = 'yhttp-auth-forbidden'

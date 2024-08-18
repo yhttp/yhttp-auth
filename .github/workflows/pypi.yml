@@ -9,13 +9,16 @@ jobs:
     name: Deploy to PyPI
     runs-on: ubuntu-latest
     env:
-      VENVPATH: /usr 
+      PREFIX: /usr 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
     - name: Install dependencies
-      run: make env-ci
+      run: |
+        git clone https://github.com/pylover/python-makelib.git make
+        make env ENV=ci
     - name: Create distributions
       run: make dist
     - name: Publish a Python distribution to PyPI
