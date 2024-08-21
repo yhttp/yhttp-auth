@@ -6,11 +6,11 @@ from yhttp.ext.auth import install
 
 
 def test_authorization_token(app, Given, redis):
-    auth = install(app)
+    install(app)
     app.ready()
 
     @app.route()
-    @auth()
+    @app.auth()
     @text
     def get(req):
         with pytest.raises(AttributeError):
@@ -19,7 +19,7 @@ def test_authorization_token(app, Given, redis):
         return req.identity.id
 
     @app.route('/admin')
-    @auth(roles='admin, god')
+    @app.auth(roles='admin, god')
     @json
     def get(req):
         return req.identity.roles

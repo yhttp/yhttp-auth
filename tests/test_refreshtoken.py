@@ -7,7 +7,7 @@ from yhttp.ext.auth import install
 
 @freeze_time('2020-01-01')
 def test_refreshtoken(app, Given, redis):
-    auth = install(app)
+    install(app)
     app.settings.merge('''
     auth:
       refresh:
@@ -36,13 +36,13 @@ def test_refreshtoken(app, Given, redis):
         return reftoken.payload
 
     @app.route('/tokens')
-    @auth()
+    @app.auth()
     @y.text
     def delete(req):
         app.auth.delete_refreshtoken(req)
 
     @app.route('/admin')
-    @auth()
+    @app.auth()
     @y.text
     def get(req):
         return req.identity.id

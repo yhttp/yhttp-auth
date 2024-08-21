@@ -1,6 +1,4 @@
-import functools
-
-from .authentication import Authenticator, authenticate
+from .authentication import Authenticator
 from .cli import AuthenticatorCLI
 
 
@@ -12,5 +10,3 @@ def install(app):
     @app.when
     def ready(app):
         app.auth = Authenticator(app.settings.auth)
-
-    return functools.partial(authenticate, app)

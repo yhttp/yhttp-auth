@@ -378,19 +378,18 @@ class Authenticator:
     def permitlogin(self, id):
         self.redis.srem(FORBIDDEN_REDIS_KEY, id)
 
+    def __call__(self, roles=None):
+        if isinstance(roles, str):
+            roles = [i.strip() for i in roles.split(',')]
 
-def authenticate(app, roles=None):
-    if isinstance(roles, str):
-        roles = [i.strip() for i in roles.split(',')]
+        def decorator(handler):
+            @functools.wraps(handler)
+            def wrapper(req, *args, **kw):
+                req.identity = self.verify_token(req)
+                if roles is not None:
+                    req.identity.authorize(*roles)
 
-    def decorator(handler):
-        @functools.wraps(handler)
-        def wrapper(req, *args, **kw):
-            req.identity = app.auth.verify_token(req)
-            if roles is not None:
-                req.identity.authorize(*roles)
+                return handler(req, *args, **kw)
 
-            return handler(req, *args, **kw)
-
-        return wrapper
-    return decorator
+            return wrapper
+        return decorator
