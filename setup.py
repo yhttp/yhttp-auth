@@ -21,7 +21,7 @@ dependencies = [
     'pyjwt',
     'hiredis',
     'redis',
-    'yhttp >= 5',
+    'yhttp >= 5, < 6',
 ]
 
 
