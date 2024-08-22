@@ -78,9 +78,15 @@ class Authenticator:
 
     ''')
 
-    def __init__(self, settings=None):
+    settings = None
+    redis = None
+
+    def open(self, settings=None):
         self.settings = settings if settings else self.default_settings
         self.redis = redis.Redis(**self.settings.redis)
+
+    def close(self):
+        self.redis.close()
 
     ##########
     # OAuth2 #

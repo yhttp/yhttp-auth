@@ -1,0 +1,8 @@
+[run]
+source=yhttp
+omit = 
+
+[report]
+exclude_lines=
+	raise NotImplementedError
+	pragma: no cover

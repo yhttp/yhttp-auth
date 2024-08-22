@@ -1,8 +1,6 @@
 from easycli import SubCommand, Argument
 import json
 
-from .authentication import Authenticator
-
 
 class Create(SubCommand):
     __command__ = 'create'
@@ -20,14 +18,15 @@ class Create(SubCommand):
     ]
 
     def __call__(self, args):
-        settings = args.application.settings.auth
-        jwt = Authenticator(settings)
+        app = args.application
+        app.ready()
+
         if args.payload:
             payload = json.loads(args.payload)
         else:
             payload = ''
 
-        print(jwt.dump(args.id, payload, maxage=args.maxage))
+        print(app.auth.dump(args.id, payload, maxage=args.maxage))
 
 
 class AuthenticatorCLI(SubCommand):

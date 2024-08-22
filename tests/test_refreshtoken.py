@@ -6,43 +6,43 @@ from yhttp.ext.auth import install
 
 
 @freeze_time('2020-01-01')
-def test_refreshtoken(app, Given, redis):
-    install(app)
-    app.settings.merge('''
+def test_refreshtoken(yapp, Given, redis):
+    install(yapp)
+    yapp.settings.merge('''
     auth:
       refresh:
         domain: example.com
     ''')
-    app.ready()
+    yapp.ready()
 
-    @app.route('/reftokens')
+    @yapp.route('/reftokens')
     @y.statuscode(y.statuses.created)
     def create(req):
-        app.auth.set_refreshtoken(req, 'alice', dict(baz='qux'))
+        yapp.auth.set_refreshtoken(req, 'alice', dict(baz='qux'))
 
-    @app.route('/tokens')
+    @yapp.route('/tokens')
     @y.statuscode(y.statuses.created)
     @y.text
     def refresh(req):
-        reftoken = app.auth.verify_refreshtoken(req)
-        return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
+        reftoken = yapp.auth.verify_refreshtoken(req)
+        return yapp.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
 
-    @app.route('/tokens')
+    @yapp.route('/tokens')
     @y.json
     def read(req):
-        reftoken = app.auth.read_refreshtoken(req)
+        reftoken = yapp.auth.read_refreshtoken(req)
         if reftoken is None:
             return {}
         return reftoken.payload
 
-    @app.route('/tokens')
-    @app.auth()
+    @yapp.route('/tokens')
+    @yapp.auth()
     @y.text
     def delete(req):
-        app.auth.delete_refreshtoken(req)
+        yapp.auth.delete_refreshtoken(req)
 
-    @app.route('/admin')
-    @app.auth()
+    @yapp.route('/admin')
+    @yapp.auth()
     @y.text
     def get(req):
         return req.identity.id
@@ -63,7 +63,7 @@ def test_refreshtoken(app, Given, redis):
         when(headers={'Cookie': cookie})
         assert status == 201
         token = response.text
-        assert app.auth.decode_token(token) == {
+        assert yapp.auth.decode_token(token) == {
             'id': 'alice',
             'baz': 'qux',
             'foo': 'bar',
@@ -106,11 +106,11 @@ def test_refreshtoken(app, Given, redis):
             when()
             assert status == 401
 
-        app.auth.preventlogin('alice')
+        yapp.auth.preventlogin('alice')
         when()
         assert status == 401
 
-        app.auth.permitlogin('alice')
+        yapp.auth.permitlogin('alice')
         when()
         assert status == 200
 

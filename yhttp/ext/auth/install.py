@@ -7,6 +7,14 @@ def install(app):
     app.settings.merge('auth: {}')
     app.settings['auth'].merge(Authenticator.default_settings)
 
+    auth = Authenticator()
+
     @app.when
     def ready(app):
-        app.auth = Authenticator(app.settings.auth)
+        app.auth.open(app.settings.auth)
+
+    @app.when
+    def shutdown(app):
+        app.auth.close()
+
+    app.auth = auth

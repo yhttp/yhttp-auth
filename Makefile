@@ -6,7 +6,7 @@ PYDEPS_COMMON = \
 	'freezegun' \
 	'bddrest >= 4, < 5' \
 	'bddcli >= 2.5.1, < 3' \
-	'yhttp-dev >= 3.1.2'
+	'yhttp-dev >= 3.1.3'
 
 include make/common.mk
 include make/venv.mk

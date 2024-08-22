@@ -19,7 +19,6 @@ with open(
 
 dependencies = [
     'pyjwt',
-    'hiredis',
     'redis',
     'yhttp >= 5, < 6',
 ]
