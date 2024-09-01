@@ -3,4 +3,4 @@ from .install import install
 from .authentication import Authenticator
 
 
-__version__ = '5.0.2'
+__version__ = '6.0.0'
