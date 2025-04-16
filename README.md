@@ -22,7 +22,7 @@ from yhttp import Application
 from yhttp.ext.auth import install as auth_install
 
 
-app = Application()
+app = Application('0.1.0', 'foo')
 auth = auth_install(app)
 app.settings.merge(f'''
 auth:
@@ -88,3 +88,8 @@ setup(
 ```bash
 myapp auth --help
 ```
+
+## Contribution
+
+### python-makelib
+Install [python-makelib](https://github.com/pylover/python-makelib).
