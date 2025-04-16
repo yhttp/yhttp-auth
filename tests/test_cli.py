@@ -5,7 +5,7 @@ from yhttp.core import Application
 from yhttp.ext.auth import install
 
 
-app = Application()
+app = Application('0.1.0', 'foo')
 authorize = install(app)
 
 
