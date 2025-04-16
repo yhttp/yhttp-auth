@@ -94,3 +94,6 @@ ENV/
 
 # pytest
 .pytest_cache
+
+# python-makelib
+activate.sh
