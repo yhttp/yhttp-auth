@@ -44,14 +44,14 @@ class Authenticator:
 
       token:
         algorithm: HS256
-        secret: foobar
+        secret: '12345678901234567890123456789012'
         maxage: 3600 # seconds
         leeway: 10 # seconds
 
       refresh:
         key: yhttp-refresh-token
         algorithm: HS256
-        secret: quxquux
+        secret: '12345678901234567890123456789012'
         secure: true
         httponly: true
         maxage: 2592000 # 1 Month
@@ -72,7 +72,7 @@ class Authenticator:
       oauth2:
         state:
           algorithm: HS256
-          secret: quxquux
+          secret: '12345678901234567890123456789012'
           maxage: 60 # 1 Minute
           leeway: 10 # seconds
 
