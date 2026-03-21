@@ -1,4 +1,5 @@
 PKG_NAMESPACE = yhttp.ext.auth
+VENV_NAME = yhttp
 PKG_NAME = yhttp-auth
 PYTEST_FLAGS = -vv
 PYDEPS_COMMON = \
