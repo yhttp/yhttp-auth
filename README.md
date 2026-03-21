@@ -11,7 +11,7 @@ Authentication extension for [yhttp](https://github.com/yhttp/yhttp).
 ### Install
 
 ```bash
-pip install yhttp-pony
+pip install yhttp-auth
 ```
 
 
