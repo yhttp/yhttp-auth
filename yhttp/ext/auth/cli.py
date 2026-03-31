@@ -29,8 +29,16 @@ class Create(SubCommand):
         print(app.auth.dump(args.id, payload, maxage=args.maxage))
 
 
+class Token(SubCommand):
+    __command__ = 'token'
+    __aliases__ = ['t']
+    __arguments__ = [
+        Create,
+    ]
+
+
 class AuthenticatorCLI(SubCommand):
     __command__ = 'auth'
     __arguments__ = [
-        Create,
+        Token,
     ]

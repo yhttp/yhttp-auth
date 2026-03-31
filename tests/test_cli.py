@@ -16,27 +16,23 @@ def test_jwtcli():
         assert stderr == ''
 
         # Without Payload
-        when('auth create foo')
+        when('auth token create foo')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # With Payload
-        when('auth create foo \'{"roles": ["admin"]}\'')
+        when('auth token create foo \'{"roles": ["admin"]}\'')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # Max age
-        when('auth create --maxage 10 foo')
+        when('auth token create --maxage 10 foo')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # Without id
-        when('auth create')
+        when('auth token create')
         assert status == 2
-
-
-if __name__ == '__main__':
-    app.climain(['auth', 'c', '{"foo": "bar"}'])
