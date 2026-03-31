@@ -1,3 +1,4 @@
+import easycli
 from bddcli import Given, Application as CLIApplication, status, stderr, \
     stdout, when
 from yhttp.core import Application
@@ -5,12 +6,26 @@ from yhttp.core import Application
 from yhttp.ext.auth import install
 
 
+class Bar(easycli.SubCommand):
+    __command__ = 'bar'
+
+    def __call__(self, args):
+        print('bar')
+
+
 app = Application('0.1.0', 'foo')
-authorize = install(app)
+authorize = install(app, cliarguments=[Bar])
+
+
+def test_usercli():
+    cliapp = CLIApplication('example', f'{__name__}:app.climain')
+    with Given(cliapp, 'auth bar'):
+        assert status == 0
+        assert stdout == 'bar\n'
 
 
 def test_jwtcli():
-    cliapp = CLIApplication('example', 'tests.test_cli:app.climain')
+    cliapp = CLIApplication('example', f'{__name__}:app.climain')
     with Given(cliapp, 'auth --help'):
         assert status == 0
         assert stderr == ''

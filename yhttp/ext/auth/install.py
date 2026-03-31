@@ -2,8 +2,11 @@ from .authentication import Authenticator
 from .cli import AuthenticatorCLI
 
 
-def install(app):
+def install(app, cliarguments=None):
     app.cliarguments.append(AuthenticatorCLI)
+    if cliarguments:
+        AuthenticatorCLI.__arguments__.extend(cliarguments)
+
     app.settings.merge('auth: {}')
     app.settings['auth'].merge(Authenticator.default_settings)
 
