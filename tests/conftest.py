@@ -2,7 +2,6 @@ import functools
 
 import bddrest
 import pytest
-from yhttp.dev.fixtures import redis
 from yhttp.core import Application
 
 

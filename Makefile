@@ -3,11 +3,13 @@ VENV_NAME = yhttp
 PKG_NAME = yhttp-auth
 PYTEST_FLAGS = -vv
 PYDEPS_COMMON = \
-	'coveralls' \
-	'freezegun' \
-	'bddrest >= 6.1, < 7' \
-	'bddcli >= 2.5.1, < 3' \
-	'yhttp-dev >= 3.2.4'
+	'coveralls >= 4.1.0' \
+	'freezegun >= 1.5.5' \
+	'pytest >= 7.4.4, < 8' \
+	'bddrest >= 6.2.3, < 7' \
+	'bddcli >= 2.10.1, < 3' \
+	'pytest-fixkit >= 1.0.3'
+
 
 
 # Assert the python-makelib version
