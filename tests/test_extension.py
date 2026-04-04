@@ -5,7 +5,7 @@ from yhttp.core import text, json
 from yhttp.ext.auth import install
 
 
-def test_authorization_token(app, Given, redis):
+def test_authorization_token(app, httpreq, redis):
     install(app)
     app.ready()
 
@@ -25,7 +25,7 @@ def test_authorization_token(app, Given, redis):
         return req.identity.roles
 
     token = app.auth.dump('foo')
-    with Given(headers={'Authorization': f'Bearer {token}'}):
+    with httpreq(headers={'Authorization': f'Bearer {token}'}):
         assert status == 200
         assert response.text == 'foo'
 
@@ -39,7 +39,7 @@ def test_authorization_token(app, Given, redis):
         assert status == 401
 
     token = app.auth.dump('foo', dict(roles=['admin']))
-    with Given('/admin', headers={'Authorization': f'Bearer {token}'}):
+    with httpreq('/admin', headers={'Authorization': f'Bearer {token}'}):
         assert status == 200
         assert response.json == ['admin']
 

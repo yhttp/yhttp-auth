@@ -11,5 +11,5 @@ def app():
 
 
 @pytest.fixture
-def Given(app):
+def httpreq(app):
     return functools.partial(bddrest.Given, app)

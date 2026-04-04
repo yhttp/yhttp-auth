@@ -4,7 +4,7 @@ import yhttp.core as y
 from yhttp.ext.auth import install
 
 
-def test_oauth2_state(app, Given, redis):
+def test_oauth2_state(app, httpreq, redis):
     install(app)
     state = None
     app.settings.merge('''
@@ -26,7 +26,7 @@ def test_oauth2_state(app, Given, redis):
         assert state_.bar == 'baz'
         assert state_.redurl == '/foo'
 
-    with Given('/red'):
+    with httpreq('/red'):
         assert status == 200
         assert state is not None
         cookie = response.headers['Set-Cookie']
@@ -34,7 +34,7 @@ def test_oauth2_state(app, Given, redis):
         assert 'Max-Age' in cookie
 
     cookie = cookie.split(';')[0]
-    with Given(f'/blue?state={state}', headers={'Cookie': cookie}):
+    with httpreq(f'/blue?state={state}', headers={'Cookie': cookie}):
         assert status == 200
 
         when(query=given - 'state')

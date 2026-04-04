@@ -6,7 +6,7 @@ from yhttp.ext.auth import install
 
 
 @freeze_time('2020-01-01')
-def test_refreshtoken(app, Given, redis):
+def test_refreshtoken(app, httpreq, redis):
     install(app)
     app.settings.merge('''
     auth:
@@ -47,7 +47,7 @@ def test_refreshtoken(app, Given, redis):
     def get(req):
         return req.identity.id
 
-    with Given('/reftokens', verb='CREATE'):
+    with httpreq('/reftokens', verb='CREATE'):
         assert status == 201
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-refresh-token=')
@@ -57,7 +57,7 @@ def test_refreshtoken(app, Given, redis):
         )
 
     cookie = cookie.split(';')[0]
-    with Given('/tokens', verb='REFRESH'):
+    with httpreq('/tokens', verb='REFRESH'):
         assert status == 401
 
         when(headers={'Cookie': cookie})
@@ -95,7 +95,7 @@ def test_refreshtoken(app, Given, redis):
                 'refresh': True
             }
 
-    with Given('/admin', headers={
+    with httpreq('/admin', headers={
         'Authorization': f'Bearer {token}'
     }):
         assert status == 200
@@ -115,7 +115,7 @@ def test_refreshtoken(app, Given, redis):
         assert status == 200
 
     # Logout
-    with Given('/tokens', verb='DELETE'):
+    with httpreq('/tokens', verb='DELETE'):
         assert status == 401
 
         when(headers={'Authorization': f'Bearer {token}'})

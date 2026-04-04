@@ -4,7 +4,7 @@ import yhttp.core as y
 from yhttp.ext.auth import install
 
 
-def test_csrftoken(app, Given, redis):
+def test_csrftoken(app, httpreq, redis):
     install(app)
     token = None
     app.settings.merge('''
@@ -24,7 +24,7 @@ def test_csrftoken(app, Given, redis):
     def get(req, *, token=None):
         app.auth.verify_csrftoken(req, token)
 
-    with Given('/red'):
+    with httpreq('/red'):
         assert status == 200
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-csrf-token=')
