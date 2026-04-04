@@ -45,8 +45,15 @@ class Authenticator:
       token:
         algorithm: HS256
         secret: '12345678901234567890123456789012'
-        maxage: 3600 # seconds
-        leeway: 10 # seconds
+        maxage: 3600  # seconds
+        leeway: 10  # seconds
+        cookie:
+          key: yhttp-token
+          secure: true
+          httponly: true
+          domain:
+          samesite: Strict
+          path: /
 
       refresh:
         key: yhttp-refresh-token
@@ -54,8 +61,8 @@ class Authenticator:
         secret: '12345678901234567890123456789012'
         secure: true
         httponly: true
-        maxage: 2592000 # 1 Month
-        leeway: 10 # seconds
+        maxage: 2592000  # 1 Month
+        leeway: 10  # seconds
         domain:
         path:
         samesite: Strict
@@ -64,7 +71,7 @@ class Authenticator:
         key: yhttp-csrf-token
         secure: true
         httponly: true
-        maxage: 60 # 1 Minute
+        maxage: 60  # 1 Minute
         samesite: Strict
         domain:
         path:
@@ -73,8 +80,8 @@ class Authenticator:
         state:
           algorithm: HS256
           secret: '12345678901234567890123456789012'
-          maxage: 60 # 1 Minute
-          leeway: 10 # seconds
+          maxage: 60  # 1 Minute
+          leeway: 10  # seconds
 
     ''')
 
@@ -307,6 +314,10 @@ class Authenticator:
     #########
 
     @lazyattribute
+    def token_cookiekey(self):
+        return self.settings.token.cookie.key
+
+    @lazyattribute
     def token_secret(self):
         return self.settings.token.secret
 
@@ -365,13 +376,19 @@ class Authenticator:
         )
 
     def verify_token(self, req):
-        token = req.headers.get('Authorization')
+        token = req.cookies.get(self.token_cookiekey)
+        if token:
+            token = token.value
 
-        if token is None or not token.startswith('Bearer '):
-            raise statuses.unauthorized()
+        else:
+            token = req.headers.get('Authorization')
+            if token is None or not token.startswith('Bearer '):
+                raise statuses.unauthorized()
+
+            token = token[7:]
 
         try:
-            identity = Identity(self.decode_token(token[7:]))
+            identity = Identity(self.decode_token(token))
         except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
             raise statuses.unauthorized()
 
@@ -383,6 +400,31 @@ class Authenticator:
 
     def permitlogin(self, id):
         self.redis.srem(FORBIDDEN_REDIS_KEY, id)
+
+    def set_cookietoken(self, req, token):
+        settings = self.settings.token
+
+        # Set cookie
+        entry = req.response.setcookie(self.token_cookiekey, token)
+
+        if settings.cookie.secure:
+            entry['secure'] = settings.cookie.secure
+
+        if settings.cookie.httponly:
+            entry['httponly'] = settings.cookie.httponly
+
+        if settings.cookie.domain:
+            entry['domain'] = settings.cookie.domain
+
+        if settings.cookie.samesite:
+            entry['samesite'] = settings.cookie.samesite
+
+        if settings.maxage:
+            entry['max-age'] = settings.maxage
+
+        entry['path'] = settings.cookie.path if settings.cookie.path else \
+            req.path
+        return entry
 
     def __call__(self, roles=None):
         if isinstance(roles, str):

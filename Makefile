@@ -24,5 +24,5 @@ ifeq ("", "$(wildcard $(PYTHON_MAKELIB_PATH))")
 endif
 
 
-# Include a proper bundle rule file.
+# Include a proper bundle rules file.
 include $(PYTHON_MAKELIB_PATH)/venv-lint-test-pypi.mk
