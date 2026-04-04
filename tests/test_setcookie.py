@@ -1,5 +1,7 @@
 from bddrest import status, response, when
 
+from yhttp.core import statuscode
+
 from yhttp.ext.auth import install
 
 
@@ -11,11 +13,13 @@ def test_set_cookietoken(app, httpreq):
     app.ready()
 
     @app.route('/tokens')
+    @statuscode('201 created')
     def create(req):
         token = app.auth.dump('foo')
+        app.auth.set_cookietoken(req, token)
 
-    with httpreq('/red'):
-        assert status == 200
+    with httpreq('/token', verb='CREATE'):
+        assert status == 201
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-csrf-token=')
         assert cookie.endswith(
