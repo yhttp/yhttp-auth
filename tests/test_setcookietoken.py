@@ -17,10 +17,17 @@ def test_set_cookietoken(app, httpreq):
     app.ready()
 
     @app.route('/tokens')
-    @statuscode('201 created')
+    @statuscode('201 Created')
     def create(req):
         token = app.auth.dump('foo')
         app.auth.set_cookietoken(req, token)
+
+    @app.route('/tokens')
+    @app.auth()
+    @text
+    @statuscode('204 No Content')
+    def delete(req):
+        app.auth.delete_cookietoken(req)
 
     @app.route('/foo')
     @app.auth()
@@ -43,3 +50,11 @@ def test_set_cookietoken(app, httpreq):
         cookie = cookie.split(';')[0]
         when(headers={'Cookie': cookie})
         assert status == 200
+
+    with httpreq('/tokens', headers={'Cookie': cookie}, verb='DELETE'):
+        assert status == 204
+        cookie = response.headers['Set-Cookie']
+        assert cookie == \
+            'yhttp-token=""; Domain=example.com; ' \
+            'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/; ' \
+            'SameSite=Strict; Secure'

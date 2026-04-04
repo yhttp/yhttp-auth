@@ -401,7 +401,7 @@ class Authenticator:
     def permitlogin(self, id):
         self.redis.srem(FORBIDDEN_REDIS_KEY, id)
 
-    def set_cookietoken(self, req, token):
+    def _set_cookietoken(self, req, token):
         settings = self.settings.token
 
         # Set cookie
@@ -419,11 +419,19 @@ class Authenticator:
         if settings.cookie.samesite:
             entry['samesite'] = settings.cookie.samesite
 
+        entry['path'] = settings.cookie.path if settings.cookie.path else \
+            req.path
+        return entry
+
+    def set_cookietoken(self, req, token):
+        settings = self.settings.token
+        entry = self._set_cookietoken(req, token)
         if settings.maxage:
             entry['max-age'] = settings.maxage
 
-        entry['path'] = settings.cookie.path if settings.cookie.path else \
-            req.path
+    def delete_cookietoken(self, req):
+        entry = self._set_cookietoken(req, '')
+        entry['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
         return entry
 
     def __call__(self, roles=None):
