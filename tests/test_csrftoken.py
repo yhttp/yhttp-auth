@@ -4,25 +4,25 @@ import yhttp.core as y
 from yhttp.ext.auth import install
 
 
-def test_csrftoken(yapp, Given, redis):
-    install(yapp)
+def test_csrftoken(app, Given, redis):
+    install(app)
     token = None
-    yapp.settings.merge('''
+    app.settings.merge('''
     auth:
       csrf:
         domain: example.com
     ''')
-    yapp.ready()
+    app.ready()
 
-    @yapp.route('/red')
+    @app.route('/red')
     def get(req):
         nonlocal token
-        token = yapp.auth.create_set_csrftoken(req)
+        token = app.auth.create_set_csrftoken(req)
 
-    @yapp.route('/blue')
+    @app.route('/blue')
     @y.text
     def get(req, *, token=None):
-        yapp.auth.verify_csrftoken(req, token)
+        app.auth.verify_csrftoken(req, token)
 
     with Given('/red'):
         assert status == 200

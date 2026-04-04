@@ -4,25 +4,25 @@ import yhttp.core as y
 from yhttp.ext.auth import install
 
 
-def test_oauth2_state(yapp, Given, redis):
-    install(yapp)
+def test_oauth2_state(app, Given, redis):
+    install(app)
     state = None
-    yapp.settings.merge('''
+    app.settings.merge('''
     auth:
       csrf:
         domain: example.com
     ''')
-    yapp.ready()
+    app.ready()
 
-    @yapp.route('/red')
+    @app.route('/red')
     def get(req):
         nonlocal state
-        state = yapp.auth.dump_oauth2_state(req, '/foo', dict(bar='baz'))
+        state = app.auth.dump_oauth2_state(req, '/foo', dict(bar='baz'))
 
-    @yapp.route('/blue')
+    @app.route('/blue')
     @y.text
     def get(req, *, state=None):
-        state_ = yapp.auth.verify_oauth2_state(req, state)
+        state_ = app.auth.verify_oauth2_state(req, state)
         assert state_.bar == 'baz'
         assert state_.redurl == '/foo'
 

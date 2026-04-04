@@ -6,10 +6,10 @@ from yhttp.core import Application
 
 
 @pytest.fixture
-def yapp():
+def app():
     return Application('0.1.0', 'foo')
 
 
 @pytest.fixture
-def Given(yapp):
-    return functools.partial(bddrest.Given, yapp)
+def Given(app):
+    return functools.partial(bddrest.Given, app)
