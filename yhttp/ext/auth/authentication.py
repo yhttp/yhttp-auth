@@ -112,7 +112,7 @@ class Authenticator:
         payload = {
             'exp': self._exp(self.oauth2_state_maxage),
             'redurl': redirect_url,
-            'id': self.create_csrftoken(req)
+            'id': self.create_set_csrftoken(req)
         }
         if attrs:
             payload.update(attrs)
@@ -175,7 +175,7 @@ class Authenticator:
         entry['path'] = settings.path if settings.path else req.path
         return entry
 
-    def create_csrftoken(self, req):
+    def create_set_csrftoken(self, req):
         # Create a state token to prevent request forgery.
         token = hashlib.sha256(os.urandom(1024)).hexdigest()
 

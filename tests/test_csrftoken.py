@@ -17,7 +17,7 @@ def test_csrftoken(yapp, Given, redis):
     @yapp.route('/red')
     def get(req):
         nonlocal token
-        token = yapp.auth.create_csrftoken(req)
+        token = yapp.auth.create_set_csrftoken(req)
 
     @yapp.route('/blue')
     @y.text
