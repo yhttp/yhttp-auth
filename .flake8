@@ -2,6 +2,8 @@
 ignore = W503, F811
 exclude=
   build
+  clinic
+
 per-file-ignores =
 	yhttp/ext/auth/__init__.py: F401
 	tests/conftest.py: F401

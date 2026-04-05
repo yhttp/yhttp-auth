@@ -1,127 +1,179 @@
 from bddrest import status, response, when
 from freezegun import freeze_time
-import yhttp.core as y
 
-from yhttp.ext.auth import install
+from yhttp.core import statuscode, text
+
+from yhttp.ext.auth import install, AccessToken, RefreshToken
 
 
-@freeze_time('2020-01-01')
+@freeze_time('2020-01-01 00:00:01')
 def test_refreshtoken(app, httpreq, redis):
     install(app)
-    app.settings.merge('''
-    auth:
-      refresh:
-        domain: example.com
+    app.settings.auth.merge('''
+    domain: example.com
+    accesstoken:
+      maxage: 30
+    refreshtoken:
+      enabled: true
+      maxage: 3600
+      path: /tokens
     ''')
     app.ready()
 
-    @app.route('/reftokens')
-    @y.statuscode(y.statuses.created)
+    accesstoken_expected = AccessToken('Alice').dumps(
+        app.settings.auth.accesstoken.maxage,
+        app.settings.auth.accesstoken.secret,
+        app.settings.auth.accesstoken.algorithm,
+    )
+    refreshtoken_expected = RefreshToken('Alice').dumps(
+        app.settings.auth.refreshtoken.maxage,
+        app.settings.auth.refreshtoken.secret,
+        app.settings.auth.refreshtoken.algorithm,
+    )
+
+    @app.route('/tokens')
+    @statuscode('201 Created')
     def create(req):
-        app.auth.set_refreshtoken(req, 'alice', dict(baz='qux'))
+        token = AccessToken('Alice')
+        app.auth.session_new(req, token)
 
     @app.route('/tokens')
-    @y.statuscode(y.statuses.created)
-    @y.text
+    @statuscode('201 Created')
     def refresh(req):
-        reftoken = app.auth.verify_refreshtoken(req)
-        return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
-
-    @app.route('/tokens')
-    @y.json
-    def read(req):
-        reftoken = app.auth.read_refreshtoken(req)
-        if reftoken is None:
-            return {}
-        return reftoken.payload
+        app.auth.session_refresh(req)
 
     @app.route('/tokens')
     @app.auth()
-    @y.text
+    @statuscode('204 No Content')
     def delete(req):
-        app.auth.delete_refreshtoken(req)
+        app.auth.session_delete(req)
 
-    @app.route('/admin')
+    @app.route('/')
     @app.auth()
-    @y.text
-    def get(req):
-        return req.identity.id
+    @text
+    def whoami(req):
+        return f'You are {req.identity.id}'
 
-    with httpreq('/reftokens', verb='CREATE'):
+    with httpreq(title='Create a token(aka Login)',
+                 path='/tokens',
+                 verb='CREATE'):
         assert status == 201
-        cookie = response.headers['Set-Cookie']
-        assert cookie.startswith('yhttp-refresh-token=')
-        assert cookie.endswith(
-            'Domain=example.com; HttpOnly; Max-Age=2592000; Path=/reftokens; '
-            'SameSite=Strict; Secure'
+        assert response.cookies['yhttp-accesstoken'] == \
+            f'{accesstoken_expected}; ' \
+            'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
+            'SameSite=Strict'
+        assert response.cookies['yhttp-refreshtoken'] == \
+            f'{refreshtoken_expected}; ' \
+            'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
+            'SameSite=Strict'
+        accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
+        refreshtoken = response.cookies['yhttp-refreshtoken'].split(';', 1)[0]
+
+    with httpreq(title='Visit protected resource wihtout token',
+                 path='/',
+                 verb='WHOAMI'):
+        assert status == 401
+
+    with httpreq(title='Visit protected resource with token',
+                 path='/',
+                 verb='WHOAMI',
+                 cookies={'yhttp-accesstoken': accesstoken}):
+        assert status == 200
+        assert response.text == 'You are Alice'
+
+        # simulate token expiration
+        when(title='Try to refresh token without any access token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-refreshtoken': refreshtoken,
+             })
+        assert status == 401
+
+        when(title='Try to refresh token with access token but without the '
+                   'refreshtoken',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+             })
+        assert status == 403
+
+        when(title='Try to refresh token with malformed access token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': 'malformed-token',
+                 'yhttp-refreshtoken': refreshtoken,
+             })
+        assert status == 400
+
+        when(title='Try to refresh token with malformed refresh token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+                 'yhttp-refreshtoken': 'malformed',
+             })
+        assert status == 400
+
+        bob_refreshtoken = RefreshToken('Bob').dumps(
+            app.settings.auth.refreshtoken.maxage,
+            app.settings.auth.refreshtoken.secret,
+            app.settings.auth.refreshtoken.algorithm,
         )
+        when(title='Try to refresh the access-token with Bob\'s refresh token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+                 'yhttp-refreshtoken': bob_refreshtoken,
+             })
+        assert status == 400
 
-    cookie = cookie.split(';')[0]
-    with httpreq('/tokens', verb='REFRESH'):
-        assert status == 401
-
-        when(headers={'Cookie': cookie})
+        when(title='Try to refresh the access-token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+                 'yhttp-refreshtoken': refreshtoken,
+             })
         assert status == 201
-        token = response.text
-        assert app.auth.decode_token(token) == {
-            'id': 'alice',
-            'baz': 'qux',
-            'foo': 'bar',
-            'exp': 1577840400,
-        }
+        assert response.cookies['yhttp-accesstoken'] == \
+            f'{accesstoken_expected}; ' \
+            'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
+            'SameSite=Strict'
+        assert response.cookies['yhttp-refreshtoken'] == \
+            f'{refreshtoken_expected}; ' \
+            'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
+            'SameSite=Strict'
+        accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
 
-        with freeze_time('2020-02-01'):
-            when(headers={'Cookie': cookie})
+        with freeze_time('2020-01-01 02:00:00'):
+            when(title='Try to refresh the access-token when refresh-token is '
+                       'expired',
+                 path='/tokens',
+                 verb='REFRESH',
+                 cookies={
+                     'yhttp-accesstoken': accesstoken,
+                     'yhttp-refreshtoken': refreshtoken,
+                 })
             assert status == 401
 
-        when(headers={'Cookie': 'yhttp-refresh-token=Malforrmed'})
-        assert status == 401
+        when(title='Logout',
+             path='/tokens',
+             cookies={'yhttp-accesstoken': accesstoken},
+             verb='DELETE')
+        assert status == 204
+        assert response.cookies['yhttp-accesstoken'] == \
+            '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
+            'HttpOnly; Path=/; SameSite=Strict'
+        assert response.cookies['yhttp-refreshtoken'] == \
+            '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
+            'HttpOnly; Path=/tokens; SameSite=Strict'
 
-        when(verb='READ')
-        assert status == 200
-        assert response.json == {}
+        when(title='Visit protected resource after logout',
+             cookies={'yhttp-accesstoken': accesstoken})
 
-        when(headers={'Cookie': 'yhttp-refresh-token=Malformed'}, verb='READ')
-        assert status == 200
-        assert response.json == {}
-
-        with freeze_time('2020-02-01'):
-            when(headers={'Cookie': cookie}, verb='READ')
-            assert status == 200
-            assert response.json == {
-                'baz': 'qux',
-                'exp': 1580428800,
-                'id': 'alice',
-                'refresh': True
-            }
-
-    with httpreq('/admin', headers={
-        'Authorization': f'Bearer {token}'
-    }):
-        assert status == 200
-        assert response.text == 'alice'
-
-        # One hour + 10 seconds leeway
-        with freeze_time('2020-01-01 01:00:11'):
-            when()
-            assert status == 401
-
-        app.auth.preventlogin('alice')
-        when()
-        assert status == 401
-
-        app.auth.permitlogin('alice')
-        when()
-        assert status == 200
-
-    # Logout
-    with httpreq('/tokens', verb='DELETE'):
-        assert status == 401
-
-        when(headers={'Authorization': f'Bearer {token}'})
-        assert status == 200
-        cookie = response.headers['Set-Cookie']
-        assert cookie == \
-            'yhttp-refresh-token=""; Domain=example.com; ' \
-            'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/tokens; ' \
-            'SameSite=Strict; Secure'
+        # free the time
+        app.shutdown()

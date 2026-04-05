@@ -1,4 +1,4 @@
-from .authentication import Authenticator
+from .authenticator import Authenticator
 from .cli import AuthenticatorCLI
 
 
@@ -8,16 +8,15 @@ def install(app, cliarguments=None):
         AuthenticatorCLI.__arguments__.extend(cliarguments)
 
     app.settings.merge('auth: {}')
-    app.settings['auth'].merge(Authenticator.default_settings)
-
-    auth = Authenticator()
+    app.settings.auth.merge(Authenticator.defaultsettings)
+    auth = Authenticator(app.settings.auth)
 
     @app.when
     def ready(app):
-        app.auth.open(app.settings.auth)
+        app.auth.ready()
 
     @app.when
     def shutdown(app):
-        app.auth.close()
+        app.auth.shutdown()
 
     app.auth = auth
