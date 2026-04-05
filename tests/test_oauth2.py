@@ -7,22 +7,21 @@ from yhttp.ext.auth import install
 def test_oauth2_state(app, httpreq, redis):
     install(app)
     state = None
-    app.settings.merge('''
-    auth:
-      csrf:
-        domain: example.com
+    app.settings.auth.merge('''
+    csrftoken:
+      domain: example.com
     ''')
     app.ready()
 
     @app.route('/red')
     def get(req):
         nonlocal state
-        state = app.auth.dump_oauth2_state(req, '/foo', dict(bar='baz'))
+        state = app.auth.oauth2_state_dump(req, '/foo', dict(bar='baz'))
 
     @app.route('/blue')
     @y.text
     def get(req, *, state=None):
-        state_ = app.auth.verify_oauth2_state(req, state)
+        state_ = app.auth.oauth2_state_verify(req, state)
         assert state_.bar == 'baz'
         assert state_.redurl == '/foo'
 
@@ -30,7 +29,7 @@ def test_oauth2_state(app, httpreq, redis):
         assert status == 200
         assert state is not None
         cookie = response.headers['Set-Cookie']
-        assert cookie.startswith('yhttp-csrf-token=')
+        assert cookie.startswith('yhttp-csrftoken=')
         assert 'Max-Age' in cookie
 
     cookie = cookie.split(';')[0]

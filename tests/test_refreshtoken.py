@@ -8,29 +8,29 @@ from yhttp.ext.auth import install
 @freeze_time('2020-01-01')
 def test_refreshtoken(app, httpreq, redis):
     install(app)
-    app.settings.merge('''
-    auth:
-      refresh:
-        domain: example.com
+    app.settings.auth.merge('''
+    refreshtoken:
+      domain: example.com
     ''')
     app.ready()
 
     @app.route('/reftokens')
     @y.statuscode(y.statuses.created)
     def create(req):
-        app.auth.set_refreshtoken(req, 'alice', dict(baz='qux'))
+        app.auth.refreshtoken_cookie_create_set(req, 'alice', dict(baz='qux'))
 
     @app.route('/tokens')
     @y.statuscode(y.statuses.created)
     @y.text
     def refresh(req):
-        reftoken = app.auth.verify_refreshtoken(req)
-        return app.auth.dump_from_refreshtoken(reftoken, dict(foo='bar'))
+        reftoken = app.auth.refreshtoken_verify(req)
+        return app.auth.logintoken_dump_from_refreshtoken(
+            reftoken, dict(foo='bar'))
 
     @app.route('/tokens')
     @y.json
     def read(req):
-        reftoken = app.auth.read_refreshtoken(req)
+        reftoken = app.auth.refreshtoken_read(req)
         if reftoken is None:
             return {}
         return reftoken.payload
@@ -39,7 +39,7 @@ def test_refreshtoken(app, httpreq, redis):
     @app.auth()
     @y.text
     def delete(req):
-        app.auth.delete_refreshtoken(req)
+        app.auth.refreshtoken_cookie_delete(req)
 
     @app.route('/admin')
     @app.auth()
@@ -50,7 +50,7 @@ def test_refreshtoken(app, httpreq, redis):
     with httpreq('/reftokens', verb='CREATE'):
         assert status == 201
         cookie = response.headers['Set-Cookie']
-        assert cookie.startswith('yhttp-refresh-token=')
+        assert cookie.startswith('yhttp-refreshtoken=')
         assert cookie.endswith(
             'Domain=example.com; HttpOnly; Max-Age=2592000; Path=/reftokens; '
             'SameSite=Strict; Secure'
@@ -63,7 +63,7 @@ def test_refreshtoken(app, httpreq, redis):
         when(headers={'Cookie': cookie})
         assert status == 201
         token = response.text
-        assert app.auth.decode_token(token) == {
+        assert app.auth.logintoken_decode(token) == {
             'id': 'alice',
             'baz': 'qux',
             'foo': 'bar',
@@ -74,14 +74,14 @@ def test_refreshtoken(app, httpreq, redis):
             when(headers={'Cookie': cookie})
             assert status == 401
 
-        when(headers={'Cookie': 'yhttp-refresh-token=Malforrmed'})
+        when(headers={'Cookie': 'yhttp-refreshtoken=Malforrmed'})
         assert status == 401
 
         when(verb='READ')
         assert status == 200
         assert response.json == {}
 
-        when(headers={'Cookie': 'yhttp-refresh-token=Malformed'}, verb='READ')
+        when(headers={'Cookie': 'yhttp-refreshtoken=Malformed'}, verb='READ')
         assert status == 200
         assert response.json == {}
 
@@ -106,11 +106,11 @@ def test_refreshtoken(app, httpreq, redis):
             when()
             assert status == 401
 
-        app.auth.preventlogin('alice')
+        app.auth.userid_blacklist_set('alice')
         when()
         assert status == 401
 
-        app.auth.permitlogin('alice')
+        app.auth.userid_blacklist_unset('alice')
         when()
         assert status == 200
 
@@ -122,6 +122,6 @@ def test_refreshtoken(app, httpreq, redis):
         assert status == 200
         cookie = response.headers['Set-Cookie']
         assert cookie == \
-            'yhttp-refresh-token=""; Domain=example.com; ' \
+            'yhttp-refreshtoken=""; Domain=example.com; ' \
             'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/tokens; ' \
             'SameSite=Strict; Secure'

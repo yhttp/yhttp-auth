@@ -5,14 +5,14 @@ import functools
 from datetime import datetime, timedelta, timezone
 
 import redis
-from pymlconf import MergableDict
-from yhttp.core import statuses, lazyattribute
+from yhttp.core import statuses
 
 
 FORBIDDEN_REDIS_KEY = 'yhttp-auth-forbidden'
 
 
-class Identity:
+# encapsulate all tokens inside this class with dumps and loads method
+class Token:
     def __init__(self, payload):
         assert payload['id'] is not None
         self.payload = payload
@@ -36,133 +36,69 @@ class Identity:
 
 class Authenticator:
     redis = None
-    default_settings = MergableDict('''
-      redis:
-        host: localhost
-        port: 6379
-        db: 0
 
-      token:
-        algorithm: HS256
-        secret: '12345678901234567890123456789012'
-        maxage: 3600  # seconds
-        leeway: 10  # seconds
-        cookie:
-          key: yhttp-token
-          secure: true
-          httponly: true
-          domain:
-          samesite: Strict
-          path: /
+    def __init__(self, settings):
+        self.settings = settings
 
-      refresh:
-        key: yhttp-refresh-token
-        algorithm: HS256
-        secret: '12345678901234567890123456789012'
-        secure: true
-        httponly: true
-        maxage: 2592000  # 1 Month
-        leeway: 10  # seconds
-        domain:
-        path:
-        samesite: Strict
-
-      csrf:
-        key: yhttp-csrf-token
-        secure: true
-        httponly: true
-        maxage: 60  # 1 Minute
-        samesite: Strict
-        domain:
-        path:
-
-      oauth2:
-        state:
-          algorithm: HS256
-          secret: '12345678901234567890123456789012'
-          maxage: 60  # 1 Minute
-          leeway: 10  # seconds
-
-    ''')
-
-    settings = None
-    redis = None
-
-    def open(self, settings=None):
-        self.settings = settings if settings else self.default_settings
+    def ready(self):
         self.redis = redis.Redis(**self.settings.redis)
 
-    def close(self):
+    def shutdown(self):
         self.redis.close()
+
+    def _calculate_expirationtime(self, seconds):
+        return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
 
     ##########
     # OAuth2 #
     ##########
 
-    @lazyattribute
-    def oauth2_state_maxage(self):
-        return self.settings.oauth2.state.maxage
-
-    @lazyattribute
-    def oauth2_state_secret(self):
-        return self.settings.oauth2.state.secret
-
-    @lazyattribute
-    def oauth2_state_algorithm(self):
-        return self.settings.oauth2.state.algorithm
-
-    @lazyattribute
-    def oauth2_state_leeway(self):
-        return self.settings.oauth2.state.leeway
-
-    def dump_oauth2_state(self, req, redirect_url, attrs=None):
+    def oauth2_state_dump(self, req, redirect_url, attrs=None):
+        settings = self.settings.oauth2.state
         payload = {
-            'exp': self._exp(self.oauth2_state_maxage),
+            'exp': self._calculate_expirationtime(settings.maxage),
             'redurl': redirect_url,
-            'id': self.create_set_csrftoken(req)
+            'id': self.csrftoken_create_cookie_set(req)
         }
         if attrs:
             payload.update(attrs)
 
         return jwt.encode(
             payload,
-            self.oauth2_state_secret,
-            algorithm=self.oauth2_state_algorithm
+            settings.secret,
+            algorithm=settings.algorithm
         )
 
-    def decode_oauth2_state(self, state):
+    def oauth2_state_decode(self, state):
+        settings = self.settings.oauth2.state
         return jwt.decode(
             state,
-            self.oauth2_state_secret,
-            leeway=self.oauth2_state_leeway,
-            algorithms=[self.oauth2_state_algorithm]
+            settings.secret,
+            leeway=settings.leeway,
+            algorithms=[settings.algorithm]
         )
 
-    def verify_oauth2_state(self, req, state):
+    def oauth2_state_verify(self, req, state):
         if state is None:
             raise statuses.unauthorized()
 
         try:
-            identity = Identity(self.decode_oauth2_state(state))
+            identity = Token(self.oauth2_state_decode(state))
         except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
             raise statuses.unauthorized()
 
-        self.verify_csrftoken(req, identity.id)
+        self.csrftoken_verify(req, identity.id)
         return identity
 
     ########
     # CSRF #
     ########
 
-    @lazyattribute
-    def csrf_cookiekey(self):
-        return self.settings.csrf.key
-
-    def set_csrfcookie(self, req, token):
-        settings = self.settings.csrf
+    def csrftoken_cookie_set(self, req, csrftoken):
+        settings = self.settings.csrftoken
 
         # Set cookie
-        entry = req.response.setcookie(self.csrf_cookiekey, token)
+        entry = req.response.setcookie(settings.key, csrftoken)
 
         if settings.secure:
             entry['secure'] = settings.secure
@@ -182,50 +118,31 @@ class Authenticator:
         entry['path'] = settings.path if settings.path else req.path
         return entry
 
-    def create_set_csrftoken(self, req):
-        # Create a state token to prevent request forgery.
-        token = hashlib.sha256(os.urandom(1024)).hexdigest()
+    def csrftoken_create_cookie_set(self, req):
+        # Create a state csrftoken to prevent request forgery.
+        csrftoken = hashlib.sha256(os.urandom(1024)).hexdigest()
 
-        self.set_csrfcookie(req, token)
-        return token
+        self.csrftoken_cookie_set(req, csrftoken)
+        return csrftoken
 
-    def verify_csrftoken(self, req, token):
-        ctoken = req.cookies.get(self.csrf_cookiekey)
+    def csrftoken_verify(self, req, csrftoken):
+        settings = self.settings.csrftoken
+        ctoken = req.cookies.get(settings.key)
         if ctoken is None:
             raise statuses.unauthorized()
 
-        if ctoken.value != token:
+        if ctoken.value != csrftoken:
             raise statuses.unauthorized()
 
-    ##########
-    # Refresh
-    ##########
+    #################
+    # Refresh Token #
+    #################
 
-    @lazyattribute
-    def refresh_cookiekey(self):
-        return self.settings.refresh.key
-
-    @lazyattribute
-    def refresh_secret(self):
-        return self.settings.refresh.secret
-
-    @lazyattribute
-    def refresh_maxage(self):
-        return self.settings.refresh.maxage
-
-    @lazyattribute
-    def refresh_leeway(self):
-        return self.settings.refresh.leeway
-
-    @lazyattribute
-    def refresh_algorithm(self):
-        return self.settings.refresh.algorithm
-
-    def _set_refreshtoken(self, req, token):
-        settings = self.settings.refresh
+    def refreshtoken_cookie_set(self, req, refreshtoken):
+        settings = self.settings.refreshtoken
 
         # Set cookie
-        entry = req.response.setcookie(self.refresh_cookiekey, token)
+        entry = req.response.setcookie(settings.key, refreshtoken)
 
         if settings.secure:
             entry['secure'] = settings.secure
@@ -242,65 +159,66 @@ class Authenticator:
         entry['path'] = settings.path if settings.path else req.path
         return entry
 
-    def delete_refreshtoken(self, req):
-        entry = self._set_refreshtoken(req, '')
+    def refreshtoken_cookie_delete(self, req):
+        entry = self.refreshtoken_cookie_set(req, '')
         entry['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
         return entry
 
-    def set_refreshtoken(self, req, id, attrs=None):
-        settings = self.settings.refresh
-        token = self.dump_refreshtoken(id, attrs)
+    def refreshtoken_cookie_create_set(self, req, id, attrs=None):
+        settings = self.settings.refreshtoken
+        refreshtoken = self.refreshtoken_dump(id, attrs)
 
         # Set cookie
-        entry = self._set_refreshtoken(req, token)
+        entry = self.refreshtoken_cookie_set(req, refreshtoken)
         entry['max-age'] = settings.maxage
         return entry
 
-    def _exp(self, seconds):
-        return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
-
-    def dump_refreshtoken(self, id, attrs=None):
+    # TODO: remove it
+    def refreshtoken_dump(self, id, attrs=None):
+        settings = self.settings.refreshtoken
         payload = {
             'id': id,
             'refresh': True,
-            'exp': self._exp(self.refresh_maxage)
+            'exp': self._calculate_expirationtime(settings.maxage)
         }
         if attrs:
             payload.update(attrs)
 
         return jwt.encode(
             payload,
-            self.refresh_secret,
-            algorithm=self.refresh_algorithm
+            settings.secret,
+            algorithm=settings.algorithm
         )
 
-    def verify_refreshtoken(self, req):
-        if self.refresh_cookiekey not in req.cookies:
+    def refreshtoken_verify(self, req):
+        settings = self.settings.refreshtoken
+        if settings.key not in req.cookies:
             raise statuses.unauthorized()
 
-        token = req.cookies[self.refresh_cookiekey].value
+        refreshtoken = req.cookies[settings.key].value
         try:
-            identity = Identity(jwt.decode(
-                token,
-                self.refresh_secret,
-                leeway=self.refresh_leeway,
-                algorithms=[self.refresh_algorithm]
+            identity = Token(jwt.decode(
+                refreshtoken,
+                settings.secret,
+                leeway=settings.leeway,
+                algorithms=[settings.algorithm]
             ))
 
         except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
             raise statuses.unauthorized()
 
-        self.check_blacklist(identity.id)
+        self.userid_blacklist_check(identity.id)
         return identity
 
-    def read_refreshtoken(self, req):
-        if self.refresh_cookiekey not in req.cookies:
+    def refreshtoken_read(self, req):
+        settings = self.settings.refreshtoken
+        if settings.key not in req.cookies:
             return None
 
-        token = req.cookies[self.refresh_cookiekey].value
+        refreshtoken = req.cookies[settings.key].value
         try:
-            identity = Identity(jwt.decode(
-                token,
+            identity = Token(jwt.decode(
+                refreshtoken,
                 options={"verify_signature": False},
             ))
 
@@ -313,70 +231,49 @@ class Authenticator:
     # Token #
     #########
 
-    @lazyattribute
-    def token_cookiekey(self):
-        return self.settings.token.cookie.key
-
-    @lazyattribute
-    def token_secret(self):
-        return self.settings.token.secret
-
-    @lazyattribute
-    def token_maxage(self):
-        return self.settings.token.maxage
-
-    @lazyattribute
-    def token_leeway(self):
-        return self.settings.token.leeway
-
-    @lazyattribute
-    def token_algorithm(self):
-        return self.settings.token.algorithm
-
-    def dump(self, id, attrs=None, maxage=None):
+    def logintoken_dump(self, id, attrs=None, maxage=None):
+        settings = self.settings.logintoken
         payload = {
             'id': id,
-            'exp': self._exp(maxage or self.token_maxage)
+            'exp': self._calculate_expirationtime(maxage or settings.maxage)
         }
         if attrs:
             payload.update(attrs)
 
         return jwt.encode(
             payload,
-            self.token_secret,
-            algorithm=self.token_algorithm
+            settings.secret,
+            algorithm=settings.algorithm
         )
 
-    def dump_from_refreshtoken(self, refresh, attrs=None):
+    def logintoken_dump_from_refreshtoken(self, refresh, attrs=None):
+        settings = self.settings.logintoken
         payload = refresh.payload.copy()
         del payload['refresh']
 
         if attrs:
             payload.update(attrs)
 
-        payload['exp'] = self._exp(self.token_maxage)
+        payload['exp'] = self._calculate_expirationtime(settings.maxage)
         return jwt.encode(
             payload,
-            self.token_secret,
-            algorithm=self.token_algorithm
+            settings.secret,
+            algorithm=settings.algorithm
         )
 
-    def check_blacklist(self, userid):
-        # FIXME: use redis hash, hset, hget
-        if self.redis is not None and \
-                self.redis.sismember(FORBIDDEN_REDIS_KEY, userid):
-            raise statuses.unauthorized()
-
-    def decode_token(self, token):
+    # TODO: remove this
+    def logintoken_decode(self, token):
+        settings = self.settings.logintoken
         return jwt.decode(
             token,
-            self.token_secret,
-            leeway=self.token_leeway,
-            algorithms=[self.token_algorithm]
+            settings.secret,
+            leeway=settings.leeway,
+            algorithms=[settings.algorithm]
         )
 
-    def verify_token(self, req):
-        token = req.cookies.get(self.token_cookiekey)
+    def logintoken_verify(self, req):
+        settings = self.settings.logintoken
+        token = req.cookies.get(settings.cookie.key)
         if token:
             token = token.value
 
@@ -388,49 +285,54 @@ class Authenticator:
             token = token[7:]
 
         try:
-            identity = Identity(self.decode_token(token))
+            identity = Token(self.logintoken_decode(token))
         except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
             raise statuses.unauthorized()
 
-        self.check_blacklist(identity.id)
+        self.userid_blacklist_check(identity.id)
         return identity
 
-    def preventlogin(self, id):
+    def userid_blacklist_check(self, userid):
+        # FIXME: use redis hash, hset, hget
+        if self.redis is not None and \
+                self.redis.sismember(FORBIDDEN_REDIS_KEY, userid):
+            raise statuses.unauthorized()
+
+    def userid_blacklist_set(self, id):
         self.redis.sadd(FORBIDDEN_REDIS_KEY, id)
 
-    def permitlogin(self, id):
+    def userid_blacklist_unset(self, id):
         self.redis.srem(FORBIDDEN_REDIS_KEY, id)
 
-    def _set_cookietoken(self, req, token):
-        settings = self.settings.token
+    def _logintoken_cookie_set(self, req, token):
+        settings = self.settings.logintoken.cookie
 
         # Set cookie
-        entry = req.response.setcookie(self.token_cookiekey, token)
+        entry = req.response.setcookie(settings.key, token)
 
-        if settings.cookie.secure:
-            entry['secure'] = settings.cookie.secure
+        if settings.secure:
+            entry['secure'] = settings.secure
 
-        if settings.cookie.httponly:
-            entry['httponly'] = settings.cookie.httponly
+        if settings.httponly:
+            entry['httponly'] = settings.httponly
 
-        if settings.cookie.domain:
-            entry['domain'] = settings.cookie.domain
+        if settings.domain:
+            entry['domain'] = settings.domain
 
-        if settings.cookie.samesite:
-            entry['samesite'] = settings.cookie.samesite
+        if settings.samesite:
+            entry['samesite'] = settings.samesite
 
-        entry['path'] = settings.cookie.path if settings.cookie.path else \
-            req.path
+        entry['path'] = settings.path or req.path
         return entry
 
-    def set_cookietoken(self, req, token):
-        settings = self.settings.token
-        entry = self._set_cookietoken(req, token)
+    def logintoken_cookie_set(self, req, token):
+        settings = self.settings.logintoken
+        entry = self._logintoken_cookie_set(req, token)
         if settings.maxage:
             entry['max-age'] = settings.maxage
 
-    def delete_cookietoken(self, req):
-        entry = self._set_cookietoken(req, '')
+    def logintoken_cookie_delete(self, req):
+        entry = self._logintoken_cookie_set(req, '')
         entry['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
         return entry
 
@@ -441,7 +343,7 @@ class Authenticator:
         def decorator(handler):
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
-                req.identity = self.verify_token(req)
+                req.identity = self.logintoken_verify(req)
                 if roles is not None:
                     req.identity.authorize(*roles)
 

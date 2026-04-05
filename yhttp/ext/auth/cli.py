@@ -26,7 +26,7 @@ class Create(SubCommand):
         else:
             payload = ''
 
-        print(app.auth.dump(args.id, payload, maxage=args.maxage))
+        print(app.auth.logintoken_dump(args.id, payload, maxage=args.maxage))
 
 
 class Token(SubCommand):

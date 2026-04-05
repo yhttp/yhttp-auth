@@ -5,29 +5,28 @@ from yhttp.core import statuscode, text
 from yhttp.ext.auth import install
 
 
-def test_set_cookietoken(app, httpreq):
+def test_set_cookietoken(app, httpreq, redis):
     install(app)
-    app.settings.merge('''
-    auth:
-      token:
-        maxage: 30
-        cookie:
-          domain: example.com
+    app.settings.auth.merge('''
+    logintoken:
+      maxage: 30
+      cookie:
+        domain: example.com
     ''')
     app.ready()
 
     @app.route('/tokens')
     @statuscode('201 Created')
     def create(req):
-        token = app.auth.dump('foo')
-        app.auth.set_cookietoken(req, token)
+        token = app.auth.logintoken_dump('foo')
+        app.auth.logintoken_cookie_set(req, token)
 
     @app.route('/tokens')
     @app.auth()
     @text
     @statuscode('204 No Content')
     def delete(req):
-        app.auth.delete_cookietoken(req)
+        app.auth.logintoken_cookie_delete(req)
 
     @app.route('/foo')
     @app.auth()
@@ -38,7 +37,7 @@ def test_set_cookietoken(app, httpreq):
     with httpreq('/tokens', verb='CREATE'):
         assert status == 201
         cookie = response.headers['Set-Cookie']
-        assert cookie.startswith('yhttp-token=')
+        assert cookie.startswith('yhttp-logintoken=')
         assert cookie.endswith(
             'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
             'SameSite=Strict; Secure'
@@ -55,6 +54,6 @@ def test_set_cookietoken(app, httpreq):
         assert status == 204
         cookie = response.headers['Set-Cookie']
         assert cookie == \
-            'yhttp-token=""; Domain=example.com; ' \
+            'yhttp-logintoken=""; Domain=example.com; ' \
             'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/; ' \
             'SameSite=Strict; Secure'
