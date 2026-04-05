@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from yhttp.core import statuses, Request
 
 
-FORBIDDEN_REDIS_KEY = 'yhttp-auth-forbidden'
 
 
 class Authenticator:
@@ -218,49 +217,6 @@ class Authenticator:
             settings.secret,
             algorithm=settings.algorithm
         )
-
-    # TODO: remove this
-    def logintoken_decode(self, token):
-        settings = self.settings.logintoken
-        return jwt.decode(
-            token,
-            settings.secret,
-            leeway=settings.leeway,
-            algorithms=[settings.algorithm]
-        )
-
-    def logintoken_verify(self, req):
-        settings = self.settings.logintoken
-        token = req.cookies.get(settings.cookie.key)
-        if token:
-            token = token.value
-
-        else:
-            token = req.headers.get('Authorization')
-            if token is None or not token.startswith('Bearer '):
-                raise statuses.unauthorized()
-
-            token = token[7:]
-
-        try:
-            identity = Token(self.logintoken_decode(token))
-        except (KeyError, jwt.DecodeError, jwt.ExpiredSignatureError):
-            raise statuses.unauthorized()
-
-        self.userid_blacklist_check(identity.id)
-        return identity
-
-    def userid_blacklist_check(self, userid):
-        # FIXME: use redis hash, hset, hget
-        if self.redis is not None and \
-                self.redis.sismember(FORBIDDEN_REDIS_KEY, userid):
-            raise statuses.unauthorized()
-
-    def userid_blacklist_set(self, id):
-        self.redis.sadd(FORBIDDEN_REDIS_KEY, id)
-
-    def userid_blacklist_unset(self, id):
-        self.redis.srem(FORBIDDEN_REDIS_KEY, id)
 
     def _logintoken_cookie_set(self, req, token):
         settings = self.settings.logintoken.cookie

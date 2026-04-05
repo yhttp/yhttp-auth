@@ -14,3 +14,14 @@ class LoginToken(JWTToken):
                 return r
 
         raise statuses.forbidden()
+
+    @classmethod
+    def loads(cls, stoken, *args, **kw):
+        payload = cls.decode(stoken, *args, **kw)
+        id = payload.get('id')
+
+        if not id:
+            raise TokenInvalidError()
+
+        del payload['id']
+        return cls(id, payload)
