@@ -1,5 +1,6 @@
 import redis
 import functools
+
 from pymlconf import MergableDict
 
 from yhttp.core import statuses
@@ -53,7 +54,52 @@ class Authenticator:
     def blacklist_remove(self, id):
         self._redis.srem(self._settings.blacklist.key, id)
 
-    def cookie_set(self, req, token: Token):
+    def cookie_set(self, req, key, stoken, secure=None, httponly=None, domain=None,
+                   samesite=None, path=None, maxage=None, expires=None):
+        entry = req.response.setcookie(key, stoken)
+        if secure:
+            entry['secure'] = secure
+
+        if httponly:
+            entry['httponly'] = httponly
+
+        if domain:
+            entry['domain'] = domain
+
+        if samesite:
+            entry['samesite'] = samesite
+
+        if path:
+            entry['path'] = path
+
+        if maxage:
+            entry['max-age'] = maxage
+
+        if expires:
+            entry['expires'] = expires
+
+        return entry
+
+    def cookie_token_delete(self, req, type_: type):
+        if type_ is LoginToken:
+            settings = self._settings.logintoken
+        else:
+            raise TypeError(f'{type_} is not supported')
+
+        return self.cookie_set(
+            req,
+            settings.cookie.key,
+            '',
+            settings.cookie.secure,
+            settings.cookie.httponly,
+            settings.cookie.domain,
+            settings.cookie.samesite,
+            settings.cookie.path or req.path,
+            None,
+            'Thu, 01 Jan 1970 00:00:00 GMT'
+        )
+
+    def cookie_token_set(self, req, token: Token):
         if isinstance(token, LoginToken):
             settings = self._settings.logintoken
         else:
@@ -68,24 +114,18 @@ class Authenticator:
         else:
             raise TypeError(f'{type(token)} is not supported')
 
-        entry = req.response.setcookie(settings.cookie.key, stoken)
-        if settings.cookie.secure:
-            entry['secure'] = settings.cookie.secure
-
-        if settings.cookie.httponly:
-            entry['httponly'] = settings.cookie.httponly
-
-        if settings.cookie.domain:
-            entry['domain'] = settings.cookie.domain
-
-        if settings.cookie.samesite:
-            entry['samesite'] = settings.cookie.samesite
-
-        if settings.maxage:
-            entry['max-age'] = settings.maxage
-
-        entry['path'] = settings.cookie.path or req.path
-        return entry
+        return self.cookie_set(
+            req,
+            settings.cookie.key,
+            stoken,
+            settings.cookie.secure,
+            settings.cookie.httponly,
+            settings.cookie.domain,
+            settings.cookie.samesite,
+            settings.cookie.path or req.path,
+            settings.maxage,
+            None
+        )
 
     def authenticate(self, req):
         settings = self._settings.logintoken
