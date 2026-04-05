@@ -6,9 +6,8 @@ from yhttp.ext.auth import install
 
 def test_csrftoken(app, httpreq, redis):
     install(app)
-    token = None
-    app.settings.auth.merge('''
-    csrftoken:
+    app.settings.auth.csrf.merge('''
+    cookie:
       domain: example.com
     ''')
     app.ready()
@@ -16,12 +15,12 @@ def test_csrftoken(app, httpreq, redis):
     @app.route('/red')
     def get(req):
         nonlocal token
-        token = app.auth.csrftoken_create_cookie_set(req)
+        app.auth.csrf.cookie_set(req)
 
     @app.route('/blue')
     @y.text
-    def get(req, *, token=None):
-        app.auth.csrftoken_verify(req, token)
+    def get(req, *, t=None):
+        token.assert_(t or req)
 
     with httpreq('/red'):
         assert status == 200
@@ -37,7 +36,7 @@ def test_csrftoken(app, httpreq, redis):
 
         cookie = cookie.split(';')[0]
         when('/blue', headers={'Cookie': cookie})
-        assert status == 401
+        assert status == 200
 
-        when(f'/blue?token={token}', headers={'Cookie': cookie})
+        when(f'/blue?t={token}')
         assert status == 200

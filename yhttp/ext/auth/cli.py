@@ -10,6 +10,13 @@ class Create(SubCommand):
             'id', help='example: alice'
         ),
         Argument(
+            '--role',
+            default=['user'],
+            dest='roles',
+            action='append',
+            help='User role, can be specified multiple times. default: `user`.'
+        ),
+        Argument(
             'payload', default='', nargs='?', help='example: {"foo": "bar"}'
         ),
         Argument(
@@ -26,7 +33,10 @@ class Create(SubCommand):
         else:
             payload = ''
 
-        print(app.auth.logintoken_dump(args.id, payload, maxage=args.maxage))
+        token = app.auth.logintoken_create(args.id, args.roles)
+        token.update(payload)
+        token.maxage = args.maxage
+        print(token.dumps())
 
 
 class Token(SubCommand):

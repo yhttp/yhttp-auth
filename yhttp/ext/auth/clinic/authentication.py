@@ -1,37 +1,13 @@
 import os
-import jwt
 import hashlib
 import functools
+from typing import Union
 from datetime import datetime, timedelta, timezone
 
-import redis
-from yhttp.core import statuses
+from yhttp.core import statuses, Request
 
 
 FORBIDDEN_REDIS_KEY = 'yhttp-auth-forbidden'
-
-
-# encapsulate all tokens inside this class with dumps and loads method
-class Token:
-    def __init__(self, payload):
-        assert payload['id'] is not None
-        self.payload = payload
-
-    def __getattr__(self, attr):
-        try:
-            return self.payload[attr]
-        except KeyError:
-            raise AttributeError()
-
-    def authorize(self, *roles):
-        if 'roles' not in self.payload:
-            raise statuses.forbidden()
-
-        for r in roles:
-            if r in self.roles:
-                return r
-
-        raise statuses.forbidden()
 
 
 class Authenticator:
@@ -40,14 +16,11 @@ class Authenticator:
     def __init__(self, settings):
         self.settings = settings
 
-    def ready(self):
-        self.redis = redis.Redis(**self.settings.redis)
+    def logintoken_create(self, id, roles: list[str]) -> LoginToken:
+        return LoginToken(self.settings.logintoken, id, roles)
 
-    def shutdown(self):
-        self.redis.close()
-
-    def _calculate_expirationtime(self, seconds):
-        return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
+    def csrftoken_create(self) -> CSRFToken:
+        return CSRFToken(self.settings.csrftoken)
 
     ##########
     # OAuth2 #
@@ -97,7 +70,6 @@ class Authenticator:
     def csrftoken_cookie_set(self, req, csrftoken):
         settings = self.settings.csrftoken
 
-        # Set cookie
         entry = req.response.setcookie(settings.key, csrftoken)
 
         if settings.secure:
@@ -231,20 +203,6 @@ class Authenticator:
     # Token #
     #########
 
-    def logintoken_dump(self, id, attrs=None, maxage=None):
-        settings = self.settings.logintoken
-        payload = {
-            'id': id,
-            'exp': self._calculate_expirationtime(maxage or settings.maxage)
-        }
-        if attrs:
-            payload.update(attrs)
-
-        return jwt.encode(
-            payload,
-            settings.secret,
-            algorithm=settings.algorithm
-        )
 
     def logintoken_dump_from_refreshtoken(self, refresh, attrs=None):
         settings = self.settings.logintoken
@@ -345,7 +303,7 @@ class Authenticator:
             def wrapper(req, *args, **kw):
                 req.identity = self.logintoken_verify(req)
                 if roles is not None:
-                    req.identity.authorize(*roles)
+                    req.identity.isinroles(*roles)
 
                 return handler(req, *args, **kw)
 
