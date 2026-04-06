@@ -1,5 +1,5 @@
 from .install import install
-from .logintoken import LoginToken
+from .token import JWTToken, LoginToken, CSRFToken
 
 
 __version__ = '7.2.0'

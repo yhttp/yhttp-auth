@@ -1,7 +1,10 @@
 import abc
+from typing import Union
 from datetime import datetime, timezone, timedelta
 
 import jwt
+
+from yhttp.core import statuses
 
 
 class TokenError(Exception):
@@ -23,6 +26,22 @@ class Token(metaclass=abc.ABCMeta):
 
     def _expirationtime(self, seconds: int):
         return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
+
+
+class CSRFToken(Token):
+    def __init__(self, digest: str):
+        super().__init__()
+        self._digest = digest
+
+    def dumps(self):
+        return self._digest
+
+    def verify(self, digest):
+        return digest == self._digest
+
+    def assert_(self, digest: str):
+        if not self.verify(digest):
+            raise statuses.unauthorized()
 
 
 class JWTToken(Token):
@@ -90,3 +109,29 @@ class JWTToken(Token):
             return self._payload[attr]
         except KeyError:
             raise AttributeError()
+
+
+class LoginToken(JWTToken):
+    def __init__(self, id, roles=None):
+        super().__init__(dict(id=id, roles=roles or ['user']))
+
+    def isinroles(self, *roles):
+        if 'roles' not in self.payload:
+            raise statuses.forbidden()
+
+        for r in roles:
+            if r in self.roles:
+                return r
+
+        raise statuses.forbidden()
+
+    @classmethod
+    def loads(cls, stoken, *args, **kw):
+        payload = cls.decode(stoken, *args, **kw)
+        id = payload.get('id')
+
+        if not id:
+            raise TokenInvalidError()
+
+        del payload['id']
+        return cls(id, payload)

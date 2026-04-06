@@ -6,29 +6,32 @@ from yhttp.ext.auth import install
 
 def test_csrftoken(app, httpreq, redis):
     install(app)
-    app.settings.auth.csrf.merge('''
+    app.settings.auth.csrftoken.merge('''
     cookie:
       domain: example.com
     ''')
     app.ready()
+    token = None
 
     @app.route('/red')
     def get(req):
         nonlocal token
-        app.auth.csrf.cookie_set(req)
+        token = app.auth.csrftoken_create()
+        app.auth.cookie_token_set(req, token)
 
     @app.route('/blue')
     @y.text
     def get(req, *, t=None):
-        token.assert_(t or req)
+        digest = req.cookies.get('yhttp-csrftoken')
+        digest = digest.value if digest else t
+        token.assert_(digest)
 
     with httpreq('/red'):
         assert status == 200
         cookie = response.headers['Set-Cookie']
         assert cookie.startswith('yhttp-csrftoken=')
         assert cookie.endswith(
-            'Domain=example.com; HttpOnly; Max-Age=60; Path=/red; '
-            'SameSite=Strict; Secure'
+            'Domain=example.com; HttpOnly; Path=/red; SameSite=Strict'
         )
 
         when('/blue')
@@ -38,5 +41,5 @@ def test_csrftoken(app, httpreq, redis):
         when('/blue', headers={'Cookie': cookie})
         assert status == 200
 
-        when(f'/blue?t={token}')
+        when(f'/blue?t={token.dumps()}')
         assert status == 200

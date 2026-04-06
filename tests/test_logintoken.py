@@ -38,7 +38,7 @@ def test_logintoken_cookie(app, httpreq, redis):
         assert cookie.startswith('yhttp-logintoken=')
         assert cookie.endswith(
             'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
-            'SameSite=Strict; Secure'
+            'SameSite=Strict'
         )
 
     with httpreq('/', verb='WHOAMI'):
@@ -55,4 +55,4 @@ def test_logintoken_cookie(app, httpreq, redis):
         assert cookie.startswith('yhttp-logintoken=')
         assert cookie == 'yhttp-logintoken=""; Domain=example.com; ' \
             'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/; ' \
-            'SameSite=Strict; Secure'
+            'SameSite=Strict'

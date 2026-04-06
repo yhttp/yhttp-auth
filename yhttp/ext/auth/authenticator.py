@@ -1,13 +1,13 @@
+import os
 import redis
+import hashlib
 import functools
 
 from pymlconf import MergableDict
 
 from yhttp.core import statuses
 
-from .token import Token, JWTToken, TokenError
-from .logintoken import LoginToken
-
+from .token import Token, JWTToken, TokenError, LoginToken, CSRFToken
 
 
 class Authenticator:
@@ -27,11 +27,22 @@ class Authenticator:
         leeway: 10  # seconds
         cookie:
           key: yhttp-logintoken
-          secure: true
+          secure: false
           httponly: true
           domain:
           samesite: Strict
           path: /
+
+      csrftoken:
+        size: 1024
+        cookie:
+          key: yhttp-csrftoken
+          secure: false
+          httponly: true
+          maxage: 60  # 1 Minute
+          samesite: Strict
+          domain:
+          path:
     '''
 
     def __init__(self, settings):
@@ -54,31 +65,31 @@ class Authenticator:
     def blacklist_remove(self, id):
         self._redis.srem(self._settings.blacklist.key, id)
 
-    def cookie_set(self, req, key, stoken, secure=None, httponly=None, domain=None,
-                   samesite=None, path=None, maxage=None, expires=None):
-        entry = req.response.setcookie(key, stoken)
-        if secure:
-            entry['secure'] = secure
+    # def cookie_set(self, req, key, stoken, secure=None, httponly=None, domain=None,
+    #                samesite=None, path=None, maxage=None, expires=None):
+    #     entry = req.response.setcookie(key, stoken)
+    #     if secure:
+    #         entry['secure'] = secure
 
-        if httponly:
-            entry['httponly'] = httponly
+    #     if httponly:
+    #         entry['httponly'] = httponly
 
-        if domain:
-            entry['domain'] = domain
+    #     if domain:
+    #         entry['domain'] = domain
 
-        if samesite:
-            entry['samesite'] = samesite
+    #     if samesite:
+    #         entry['samesite'] = samesite
 
-        if path:
-            entry['path'] = path
+    #     if path:
+    #         entry['path'] = path
 
-        if maxage:
-            entry['max-age'] = maxage
+    #     if maxage:
+    #         entry['max-age'] = maxage
 
-        if expires:
-            entry['expires'] = expires
+    #     if expires:
+    #         entry['expires'] = expires
 
-        return entry
+    #     return entry
 
     def cookie_token_delete(self, req, type_: type):
         if type_ is LoginToken:
@@ -86,22 +97,22 @@ class Authenticator:
         else:
             raise TypeError(f'{type_} is not supported')
 
-        return self.cookie_set(
-            req,
+        return req.response.setcookie(
             settings.cookie.key,
             '',
-            settings.cookie.secure,
-            settings.cookie.httponly,
-            settings.cookie.domain,
-            settings.cookie.samesite,
-            settings.cookie.path or req.path,
-            None,
-            'Thu, 01 Jan 1970 00:00:00 GMT'
+            secure=settings.cookie.secure,
+            httponly=settings.cookie.httponly,
+            domain=settings.cookie.domain,
+            samesite=settings.cookie.samesite,
+            path=settings.cookie.path or req.path,
+            expires='Thu, 01 Jan 1970 00:00:00 GMT'
         )
 
     def cookie_token_set(self, req, token: Token):
         if isinstance(token, LoginToken):
             settings = self._settings.logintoken
+        elif isinstance(token, CSRFToken):
+            settings = self._settings.csrftoken
         else:
             raise TypeError(f'{type(token)} is not supported')
 
@@ -112,20 +123,26 @@ class Authenticator:
                 settings.algorithm
             )
         else:
-            raise TypeError(f'{type(token)} is not supported')
+            stoken = token.dumps()
 
-        return self.cookie_set(
-            req,
+        entry = req.response.setcookie(
             settings.cookie.key,
             stoken,
-            settings.cookie.secure,
-            settings.cookie.httponly,
-            settings.cookie.domain,
-            settings.cookie.samesite,
-            settings.cookie.path or req.path,
-            settings.maxage,
-            None
+            secure=settings.cookie.secure,
+            httponly=settings.cookie.httponly,
+            domain=settings.cookie.domain,
+            samesite=settings.cookie.samesite,
+            path=settings.cookie.path or req.path,
         )
+
+        if hasattr(settings, 'maxage'):
+            entry['max-age'] = settings.maxage
+
+        return entry
+
+    def csrftoken_create(self, size=None):
+        size = size or self._settings.csrftoken.size
+        return CSRFToken(hashlib.sha256(os.urandom(size)).hexdigest())
 
     def authenticate(self, req):
         settings = self._settings.logintoken
