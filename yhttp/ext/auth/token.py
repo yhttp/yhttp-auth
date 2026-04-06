@@ -47,13 +47,13 @@ class CSRFToken(Token):
 class JWTToken(Token):
     def __init__(self, payload=None):
         super().__init__()
-        self._payload = payload or dict()
+        self.payload = payload or dict()
 
     def update(self, payload):
-        self._payload.update(payload)
+        self.payload.update(payload)
 
     def dumps(self, maxage, secret, algorithm):
-        payload = self._payload.copy()
+        payload = self.payload.copy()
         payload['exp'] = self._expirationtime(maxage)
 
         return jwt.encode(
@@ -61,27 +61,6 @@ class JWTToken(Token):
             secret,
             algorithm=algorithm
         )
-
-    @classmethod
-    def decode(cls, stoken, leeway, algorithm, secret=None):
-        if secret is None:
-            return jwt.decode(
-                stoken,
-                options={"verify_signature": False},
-            )
-
-        try:
-            return jwt.decode(
-                stoken,
-                secret,
-                leeway=leeway,
-                algorithms=[algorithm]
-            )
-        except jwt.DecodeError:
-            raise TokenDecodeError()
-
-        except jwt.ExpiredSignatureError:
-            raise TokenVerifyError()
 
     @classmethod
     def loads(cls, stoken, leeway, algorithm, secret=None):
@@ -106,7 +85,7 @@ class JWTToken(Token):
 
     def __getattr__(self, attr):
         try:
-            return self._payload[attr]
+            return self.payload[attr]
         except KeyError:
             raise AttributeError()
 
@@ -127,7 +106,7 @@ class LoginToken(JWTToken):
 
     @classmethod
     def loads(cls, stoken, *args, **kw):
-        payload = cls.decode(stoken, *args, **kw)
+        payload = cls.loads(stoken, *args, **kw)
         id = payload.get('id')
 
         if not id:
@@ -135,3 +114,9 @@ class LoginToken(JWTToken):
 
         del payload['id']
         return cls(id, payload)
+
+
+class RefreshToken(LoginToken):
+    @classmethod
+    def create_from_logintoken(cls, logintoken):
+        return cls(logintoken.id, logintoken.payload)

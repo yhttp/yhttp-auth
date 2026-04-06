@@ -1,6 +1,6 @@
 from bddrest import status, response, when
 from freezegun import freeze_time
-import yhttp.core as y
+import yhttp.core as statuscode, test, statuses
 
 from yhttp.ext.auth import install
 
@@ -8,27 +8,27 @@ from yhttp.ext.auth import install
 @freeze_time('2020-01-01')
 def test_refreshtoken(app, httpreq, redis):
     install(app)
-    app.settings.auth.merge('''
-    refreshtoken:
-      domain: example.com
+    app.settings.auth.refreshtoken.merge('''
+    domain: example.com
     ''')
     app.ready()
 
     @app.route('/reftokens')
-    @y.statuscode(y.statuses.created)
+    @statuscode(statuses.created)
     def create(req):
-        app.auth.refreshtoken_cookie_create_set(req, 'alice', dict(baz='qux'))
+        refreshtoken = RefreshToken('Alice', dict(baz='qux'))
+        app.auth.cookie_set(req, refreshtoken)
 
     @app.route('/tokens')
-    @y.statuscode(y.statuses.created)
-    @y.text
+    @statuscode(statuses.created)
+    @text
     def refresh(req):
-        reftoken = app.auth.refreshtoken_verify(req)
+        refreshtoken = app.auth.refreshtoken_verify(req)
         return app.auth.logintoken_dump_from_refreshtoken(
-            reftoken, dict(foo='bar'))
+            refreshtoken, dict(foo='bar'))
 
     @app.route('/tokens')
-    @y.json
+    @json
     def read(req):
         reftoken = app.auth.refreshtoken_read(req)
         if reftoken is None:
@@ -37,13 +37,13 @@ def test_refreshtoken(app, httpreq, redis):
 
     @app.route('/tokens')
     @app.auth()
-    @y.text
+    @text
     def delete(req):
         app.auth.refreshtoken_cookie_delete(req)
 
     @app.route('/admin')
     @app.auth()
-    @y.text
+    @text
     def get(req):
         return req.identity.id
 

@@ -7,11 +7,13 @@ from pymlconf import MergableDict
 
 from yhttp.core import statuses
 
-from .token import Token, JWTToken, TokenError, LoginToken, CSRFToken
+from .token import Token, JWTToken, TokenError, LoginToken, CSRFToken, \
+    RefreshToken
 
 
 class Authenticator:
     defaultsettings = '''
+      domain:
       blacklist:
         key: yhttp-auth-forbidden
 
@@ -29,7 +31,6 @@ class Authenticator:
           key: yhttp-logintoken
           secure: false
           httponly: true
-          domain:
           samesite: Strict
           path: /
 
@@ -41,7 +42,6 @@ class Authenticator:
           httponly: true
           maxage: 60  # 1 Minute
           samesite: Strict
-          domain:
           path:
     '''
 
@@ -65,32 +65,6 @@ class Authenticator:
     def blacklist_remove(self, id):
         self._redis.srem(self._settings.blacklist.key, id)
 
-    # def cookie_set(self, req, key, stoken, secure=None, httponly=None, domain=None,
-    #                samesite=None, path=None, maxage=None, expires=None):
-    #     entry = req.response.setcookie(key, stoken)
-    #     if secure:
-    #         entry['secure'] = secure
-
-    #     if httponly:
-    #         entry['httponly'] = httponly
-
-    #     if domain:
-    #         entry['domain'] = domain
-
-    #     if samesite:
-    #         entry['samesite'] = samesite
-
-    #     if path:
-    #         entry['path'] = path
-
-    #     if maxage:
-    #         entry['max-age'] = maxage
-
-    #     if expires:
-    #         entry['expires'] = expires
-
-    #     return entry
-
     def cookie_token_delete(self, req, type_: type):
         if type_ is LoginToken:
             settings = self._settings.logintoken
@@ -102,7 +76,7 @@ class Authenticator:
             '',
             secure=settings.cookie.secure,
             httponly=settings.cookie.httponly,
-            domain=settings.cookie.domain,
+            domain=self._settings.domain,
             samesite=settings.cookie.samesite,
             path=settings.cookie.path or req.path,
             expires='Thu, 01 Jan 1970 00:00:00 GMT'
@@ -111,6 +85,8 @@ class Authenticator:
     def cookie_token_set(self, req, token: Token):
         if isinstance(token, LoginToken):
             settings = self._settings.logintoken
+        elif isinstance(token, RefreshToken):
+            settings = self._settings.refreshtoken
         elif isinstance(token, CSRFToken):
             settings = self._settings.csrftoken
         else:
@@ -130,7 +106,7 @@ class Authenticator:
             stoken,
             secure=settings.cookie.secure,
             httponly=settings.cookie.httponly,
-            domain=settings.cookie.domain,
+            domain=self._settings.domain,
             samesite=settings.cookie.samesite,
             path=settings.cookie.path or req.path,
         )

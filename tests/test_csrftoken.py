@@ -6,9 +6,8 @@ from yhttp.ext.auth import install
 
 def test_csrftoken(app, httpreq, redis):
     install(app)
-    app.settings.auth.csrftoken.merge('''
-    cookie:
-      domain: example.com
+    app.settings.auth.merge('''
+    domain: example.com
     ''')
     app.ready()
     token = None
