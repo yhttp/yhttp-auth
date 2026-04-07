@@ -1,12 +1,10 @@
 from bddrest import status, response, when
-from freezegun import freeze_time
 
 from yhttp.core import statuscode, text
 
 from yhttp.ext.auth import install, LoginToken, RefreshToken
 
 
-@freeze_time('2020-01-01')
 def test_logintoken_cookie(app, httpreq, redis):
     install(app)
     app.settings.auth.merge('''
@@ -23,15 +21,13 @@ def test_logintoken_cookie(app, httpreq, redis):
     @statuscode('201 Created')
     def create(req):
         token = LoginToken('Alice')
-        app.auth.cookie_token_set(req, token)
-        refreshtoken = RefreshToken.create_from_logintoken(token)
-        app.auth.cookie_token_set(req, refreshtoken)
+        app.auth.session_new(req, token)
 
     @app.route('/tokens')
     @app.auth()
     @statuscode('204 No Content')
     def delete(req):
-        app.auth.cookie_token_delete(req, type(req.identity))
+        app.auth.session_delete(req)
 
     @app.route('/')
     @app.auth()
@@ -45,22 +41,24 @@ def test_logintoken_cookie(app, httpreq, redis):
             'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
             'SameSite=Strict'
         )
-    #     assert response.cookies['yhttp-refreshtoken'] == \
-    #         'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
-    #         'SameSite=Strict'
+        assert response.cookies['yhttp-refreshtoken'].endswith(
+            'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; '
+            'SameSite=Strict'
+        )
+        logintoken = response.cookies['yhttp-logintoken'].split(';', 1)[0]
 
-    # with httpreq('/', verb='WHOAMI'):
-    #     assert status == 401
+    with httpreq('/', verb='WHOAMI'):
+        assert status == 401
 
-    # tokencookie = tokencookie.split(';')[0]
-    # with httpreq('/', verb='WHOAMI', headers={'Cookie': tokencookie}):
-    #     assert status == 200
-    #     assert response.text == 'You are Alice'
+    with httpreq('/', verb='WHOAMI', cookies={'yhttp-logintoken': logintoken}):
+        assert status == 200
+        assert response.text == 'You are Alice'
 
-    #     when('/tokens', verb='DELETE')
-    #     assert status == 204
-    #     tokencookie = response.headers['Set-Cookie']
-    #     assert tokencookie.startswith('yhttp-logintoken=')
-    #     assert tokencookie == 'yhttp-logintoken=""; Domain=example.com; ' \
-    #         'expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Path=/; ' \
-    #         'SameSite=Strict'
+        when('/tokens', verb='DELETE')
+        assert status == 204
+        assert response.cookies['yhttp-logintoken'] == \
+            '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
+            'HttpOnly; Path=/; SameSite=Strict'
+        assert response.cookies['yhttp-refreshtoken'] == \
+            '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
+            'HttpOnly; Path=/tokens; SameSite=Strict'

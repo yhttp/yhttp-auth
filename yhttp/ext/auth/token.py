@@ -63,25 +63,29 @@ class JWTToken(Token):
         )
 
     @classmethod
-    def loads(cls, stoken, leeway, algorithm, secret=None):
+    def decode(cls, stoken, leeway, algorithm, secret=None) -> dict:
         if secret is None:
-            return cls(jwt.decode(
+            return jwt.decode(
                 stoken,
                 options={"verify_signature": False},
-            ))
+            )
 
         try:
-            return cls(jwt.decode(
+            return jwt.decode(
                 stoken,
                 secret,
                 leeway=leeway,
                 algorithms=[algorithm]
-            ))
+            )
         except jwt.DecodeError:
             raise TokenDecodeError()
 
         except jwt.ExpiredSignatureError:
             raise TokenVerifyError()
+
+    @classmethod
+    def loads(cls, stoken, leeway, algorithm, secret=None):
+        return cls(cls.decode(stoken, leeway, algorith, secret))
 
     def __getattr__(self, attr):
         try:
@@ -91,29 +95,32 @@ class JWTToken(Token):
 
 
 class LoginToken(JWTToken):
-    def __init__(self, id, roles=None):
-        super().__init__(dict(id=id, roles=roles or ['user']))
+    def __init__(self, id, roles=None, payload=None):
+        payload_ = payload.copy() if payload else {}
+        payload_['id'] = id
+        if not roles:
+            roles = ['user']
 
-    def isinroles(self, *roles):
-        if 'roles' not in self.payload:
-            raise statuses.forbidden()
+        payload_['roles'] = roles
+        super().__init__(payload_)
 
-        for r in roles:
-            if r in self.roles:
-                return r
+    @property
+    def roles(self) -> set:
+        return set(self._payload['roles'])
 
-        raise statuses.forbidden()
+    def authorize(self, *roles):
+        return set(roles) & self.roles
 
     @classmethod
-    def loads(cls, stoken, *args, **kw):
-        payload = cls.loads(stoken, *args, **kw)
-        id = payload.get('id')
-
-        if not id:
+    def loads(cls, stoken, leeway, algorithm, secret=None):
+        payload = cls.decode(stoken, leeway, algorithm, secret)
+        try:
+            id = payload.pop('id')
+            roles = payload.pop('roles')
+        except KeyError:
             raise TokenInvalidError()
 
-        del payload['id']
-        return cls(id, payload)
+        return cls(id, roles, payload)
 
 
 class RefreshToken(LoginToken):

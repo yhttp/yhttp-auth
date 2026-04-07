@@ -23,16 +23,29 @@ class Authenticator:
         db: 0
 
       logintoken:
-        maxage: 3600  # seconds
+        maxage: 3600     # seconds
+        leeway: 10       # seconds
         secret: '12345678901234567890123456789012'
         algorithm: HS256
-        leeway: 10  # seconds
         cookie:
           key: yhttp-logintoken
           secure: false
           httponly: true
           samesite: Strict
           path: /
+
+      refreshtoken:
+        enabled: true
+        maxage: 2592000  # 1 Month
+        leeway: 10       # seconds
+        algorithm: HS256
+        secret: '12345678901234567890123456789012'
+        cookie:
+          key: yhttp-refreshtoken
+          secure: false
+          httponly: true
+          samesite: Strict
+          path:
 
       csrftoken:
         size: 1024
@@ -66,7 +79,9 @@ class Authenticator:
         self._redis.srem(self._settings.blacklist.key, id)
 
     def cookie_token_delete(self, req, type_: type):
-        if type_ is LoginToken:
+        if type_ is RefreshToken:
+            settings = self._settings.refreshtoken
+        elif type_ is LoginToken:
             settings = self._settings.logintoken
         else:
             raise TypeError(f'{type_} is not supported')
@@ -83,10 +98,10 @@ class Authenticator:
         )
 
     def cookie_token_set(self, req, token: Token):
-        if isinstance(token, LoginToken):
-            settings = self._settings.logintoken
-        elif isinstance(token, RefreshToken):
+        if isinstance(token, RefreshToken):
             settings = self._settings.refreshtoken
+        elif isinstance(token, LoginToken):
+            settings = self._settings.logintoken
         elif isinstance(token, CSRFToken):
             settings = self._settings.csrftoken
         else:
@@ -119,6 +134,16 @@ class Authenticator:
     def csrftoken_create(self, size=None):
         size = size or self._settings.csrftoken.size
         return CSRFToken(hashlib.sha256(os.urandom(size)).hexdigest())
+
+    def session_new(self, req, token: LoginToken):
+        self.cookie_token_set(req, token)
+        if self._settings.refreshtoken.enabled:
+            refreshtoken = RefreshToken.create_from_logintoken(token)
+            self.cookie_token_set(req, refreshtoken)
+
+    def session_delete(self, req):
+        self.cookie_token_delete(req, LoginToken)
+        self.cookie_token_delete(req, RefreshToken)
 
     def authenticate(self, req):
         settings = self._settings.logintoken
