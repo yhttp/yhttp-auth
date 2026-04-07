@@ -15,7 +15,7 @@ class TokenDecodeError(TokenError):
     pass
 
 
-class TokenVerifyError(TokenError):
+class TokenExipredError(TokenError):
     pass
 
 
@@ -81,7 +81,7 @@ class JWTToken(Token):
             raise TokenDecodeError()
 
         except jwt.ExpiredSignatureError:
-            raise TokenVerifyError()
+            raise TokenExipredError()
 
     @classmethod
     def loads(cls, stoken, leeway, algorithm, secret=None):

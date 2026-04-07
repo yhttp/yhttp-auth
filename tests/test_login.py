@@ -1,11 +1,13 @@
 from bddrest import status, response, when
+from freezegun import freeze_time
 
 from yhttp.core import statuscode, text
 
 from yhttp.ext.auth import install, LoginToken, RefreshToken
 
 
-def test_logintoken_cookie(app, httpreq, redis):
+@freeze_time('2020-01-01 00:00:01')
+def test_login(app, httpreq, redis):
     install(app)
     app.settings.auth.merge('''
     domain: example.com
@@ -24,6 +26,11 @@ def test_logintoken_cookie(app, httpreq, redis):
         app.auth.session_new(req, token)
 
     @app.route('/tokens')
+    @statuscode('201 Created')
+    def get(req):
+        app.auth.session_refresh(req)
+
+    @app.route('/tokens')
     @app.auth()
     @statuscode('204 No Content')
     def delete(req):
@@ -35,7 +42,9 @@ def test_logintoken_cookie(app, httpreq, redis):
     def whoami(req):
         return f'You are {req.identity.id}'
 
-    with httpreq('/tokens', verb='CREATE'):
+    with httpreq(title='Create a token(aka Login)',
+                 path='/tokens',
+                 verb='CREATE'):
         assert status == 201
         assert response.cookies['yhttp-logintoken'].endswith(
             'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
@@ -47,14 +56,31 @@ def test_logintoken_cookie(app, httpreq, redis):
         )
         logintoken = response.cookies['yhttp-logintoken'].split(';', 1)[0]
 
-    with httpreq('/', verb='WHOAMI'):
+    with httpreq(title='Visit protected resource wihtout token',
+                 path='/',
+                 verb='WHOAMI'):
         assert status == 401
 
-    with httpreq('/', verb='WHOAMI', cookies={'yhttp-logintoken': logintoken}):
+    with httpreq(title='Visit protected resource with token',
+                 path='/',
+                 verb='WHOAMI',
+                 cookies={'yhttp-logintoken': logintoken}):
         assert status == 200
         assert response.text == 'You are Alice'
 
-        when('/tokens', verb='DELETE')
+        # simulate token expiration
+        with freeze_time('2020-01-01 00:01:00'):
+            when(title='Visit protected resource with expired token and '
+                       'without the refresh token')
+            assert status == 401
+
+            # when(title='Visit protected resource with expired token and with '
+            #            'the refresh token provided')
+            # assert status == 201
+
+        when(title='Logout',
+             path='/tokens',
+             verb='DELETE')
         assert status == 204
         assert response.cookies['yhttp-logintoken'] == \
             '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
@@ -62,3 +88,4 @@ def test_logintoken_cookie(app, httpreq, redis):
         assert response.cookies['yhttp-refreshtoken'] == \
             '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
             'HttpOnly; Path=/tokens; SameSite=Strict'
+

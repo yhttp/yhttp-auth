@@ -145,6 +145,9 @@ class Authenticator:
         self.cookie_token_delete(req, LoginToken)
         self.cookie_token_delete(req, RefreshToken)
 
+    def session_refresh(self, req):
+        pass
+
     def authenticate(self, req):
         settings = self._settings.logintoken
         cookie = req.cookies.get(settings.cookie.key)
@@ -165,8 +168,11 @@ class Authenticator:
                 settings.algorithm,
                 settings.secret
             )
-        except TokenError:
+        except TokenExpiredError:
             raise statuses.unauthorized()
+
+        except TokenError:
+            raise statuses.badrequest()
 
         if self.blacklist_has(identity.id):
             raise statuses.forbidden()
@@ -182,7 +188,8 @@ class Authenticator:
             def wrapper(req, *args, **kw):
                 req.identity = self.authenticate(req)
                 if roles:
-                    req.identity.isinroles(*roles)
+                    if not req.identity.authorize(*roles):
+                        raise statuses.forbidden()
 
                 return handler(req, *args, **kw)
 
