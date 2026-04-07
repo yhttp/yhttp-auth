@@ -27,17 +27,15 @@ def test_csrftoken(app, httpreq, redis):
 
     with httpreq('/red'):
         assert status == 200
-        cookie = response.headers['Set-Cookie']
-        assert cookie.startswith('yhttp-csrftoken=')
-        assert cookie.endswith(
+        assert response.cookies['yhttp-csrftoken'].endswith(
             'Domain=example.com; HttpOnly; Path=/red; SameSite=Strict'
         )
+        csrftoken = response.cookies['yhttp-csrftoken'].split(';')[0]
 
         when('/blue')
         assert status == 401
 
-        cookie = cookie.split(';')[0]
-        when('/blue', headers={'Cookie': cookie})
+        when('/blue', cookies={'yhttp-csrftoken': csrftoken})
         assert status == 200
 
         when(f'/blue?t={token.dumps()}')
