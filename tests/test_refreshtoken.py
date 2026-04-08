@@ -7,13 +7,14 @@ from yhttp.ext.auth import install, AccessToken, RefreshToken
 
 
 @freeze_time('2020-01-01 00:00:01')
-def test_login_refresh(app, httpreq, redis):
+def test_refreshtoken(app, httpreq, redis):
     install(app)
     app.settings.auth.merge('''
     domain: example.com
     accesstoken:
       maxage: 30
     refreshtoken:
+      enabled: true
       maxage: 3600
       path: /tokens
     ''')
@@ -81,42 +82,61 @@ def test_login_refresh(app, httpreq, redis):
         assert response.text == 'You are Alice'
 
         # simulate token expiration
-        with freeze_time('2020-01-01 00:01:00'):
-            when(title='Visit protected resource with expired token and '
-                       'without the refresh token')
-            assert status == 401
+        timefreezer = freeze_time('2020-01-01 00:01:00')
+        timefreezer.start()
+        when(title='Visit protected resource with expired token and '
+                   'without the refresh token')
+        assert status == 401
 
-            # create expected access and refresh tokens
-            accesstoken_expected = AccessToken('Alice').dumps(
-                app.settings.auth.accesstoken.maxage,
-                app.settings.auth.accesstoken.secret,
-                app.settings.auth.accesstoken.algorithm,
-            )
-            refreshtoken_expected = RefreshToken('Alice').dumps(
-                app.settings.auth.refreshtoken.maxage,
-                app.settings.auth.refreshtoken.secret,
-                app.settings.auth.refreshtoken.algorithm,
-            )
-            when(title='Try to refresh token',
-                 path='/tokens',
-                 verb='REFRESH',
-                 cookies={
-                     'yhttp-accesstoken': accesstoken,
-                     'yhttp-refreshtoken': refreshtoken,
-                 })
-            assert status == 201
-            assert response.cookies['yhttp-accesstoken'] == \
-                f'{accesstoken_expected}; ' \
-                'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
-                'SameSite=Strict'
-            assert response.cookies['yhttp-refreshtoken'] == \
-                f'{refreshtoken_expected}; ' \
-                'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
-                'SameSite=Strict'
-            accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
+        when(title='Try to refresh token without any access token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-refreshtoken': refreshtoken,
+             })
+        assert status == 401
+
+        when(title='Try to refresh token with malformed access token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': 'malformed-token',
+                 'yhttp-refreshtoken': refreshtoken,
+             })
+        assert status == 400
+
+        # create expected access and refresh tokens
+        accesstoken_expected = AccessToken('Alice').dumps(
+            app.settings.auth.accesstoken.maxage,
+            app.settings.auth.accesstoken.secret,
+            app.settings.auth.accesstoken.algorithm,
+        )
+        refreshtoken_expected = RefreshToken('Alice').dumps(
+            app.settings.auth.refreshtoken.maxage,
+            app.settings.auth.refreshtoken.secret,
+            app.settings.auth.refreshtoken.algorithm,
+        )
+        when(title='Try to refresh token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+                 'yhttp-refreshtoken': refreshtoken,
+             })
+        assert status == 201
+        assert response.cookies['yhttp-accesstoken'] == \
+            f'{accesstoken_expected}; ' \
+            'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
+            'SameSite=Strict'
+        assert response.cookies['yhttp-refreshtoken'] == \
+            f'{refreshtoken_expected}; ' \
+            'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
+            'SameSite=Strict'
+        accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
 
         when(title='Logout',
              path='/tokens',
+             cookies={'yhttp-accesstoken': accesstoken},
              verb='DELETE')
         assert status == 204
         assert response.cookies['yhttp-accesstoken'] == \
@@ -126,3 +146,9 @@ def test_login_refresh(app, httpreq, redis):
             '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
             'HttpOnly; Path=/tokens; SameSite=Strict'
 
+        when(title='Visit protected resource after logout',
+             cookies={'yhttp-accesstoken': accesstoken})
+
+        # free the time
+        timefreezer.stop()
+        app.shutdown()

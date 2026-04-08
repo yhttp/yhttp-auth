@@ -35,7 +35,7 @@ class Authenticator:
           path: /
 
       refreshtoken:
-        enabled: true
+        enabled: false
         maxage: 2592000  # 1 Month
         leeway: 10       # seconds
         algorithm: HS256
@@ -159,8 +159,6 @@ class Authenticator:
                 accesssettings.algorithm,
                 None
             )
-        except TokenExpiredError:
-            raise statuses.unauthorized()
 
         except TokenDecodeError:
             raise statuses.badrequest()

@@ -109,7 +109,7 @@ class AccessToken(JWTToken):
         return set(self._payload['roles'])
 
     def authorize(self, *roles):
-        return set(roles) & self.roles
+        return set(roles) & set(self.roles)
 
     @classmethod
     def loads(cls, stoken, leeway, algorithm, secret=None):
