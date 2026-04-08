@@ -64,13 +64,13 @@ class JWTToken(Token):
 
     @classmethod
     def decode(cls, stoken, leeway, algorithm, secret=None) -> dict:
-        if secret is None:
-            return jwt.decode(
-                stoken,
-                options={"verify_signature": False},
-            )
-
         try:
+            if secret is None:
+                return jwt.decode(
+                    stoken,
+                    options={"verify_signature": False},
+                )
+
             return jwt.decode(
                 stoken,
                 secret,
@@ -122,8 +122,22 @@ class AccessToken(JWTToken):
 
         return cls(id, roles, payload)
 
+    @classmethod
+    def create_from_refreshtoken(cls, refreshtoken):
+        payload = refreshtoken.payload.copy()
+        del payload['id']
+        del payload['roles']
+        if 'exp' in payload:
+            del payload['exp']
+        return cls(refreshtoken.id, refreshtoken.roles, payload)
+
 
 class RefreshToken(AccessToken):
     @classmethod
     def create_from_accesstoken(cls, accesstoken):
-        return cls(accesstoken.id, accesstoken.payload)
+        payload = accesstoken.payload.copy()
+        del payload['id']
+        del payload['roles']
+        if 'exp' in payload:
+            del payload['exp']
+        return cls(accesstoken.id, accesstoken.roles, payload)

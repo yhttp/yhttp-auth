@@ -146,7 +146,48 @@ class Authenticator:
         self.cookie_token_delete(req, RefreshToken)
 
     def session_refresh(self, req):
-        pass
+        # ensure the access token (even expired) but not invalid
+        accesssettings = self._settings.accesstoken
+        accesscookie = req.cookies.get(accesssettings.cookie.key)
+        if not accesscookie:
+            raise statuses.unauthorized()
+
+        try:
+            accesstoken = AccessToken.loads(
+                accesscookie.value,
+                accesssettings.leeway,
+                accesssettings.algorithm,
+                None
+            )
+        except TokenExpiredError:
+            raise statuses.unauthorized()
+
+        except TokenDecodeError:
+            raise statuses.badrequest()
+
+        refreshsettings = self._settings.refreshtoken
+        refreshcookie = req.cookies.get(refreshsettings.cookie.key)
+        if not refreshcookie:
+            raise statuses.unauthorized()
+
+        try:
+            refreshtoken = RefreshToken.loads(
+                refreshcookie.value,
+                refreshsettings.leeway,
+                refreshsettings.algorithm,
+                refreshsettings.secret
+            )
+        except TokenExpiredError:
+            raise statuses.unauthorized()
+
+        except TokenDecodeError:
+            raise statuses.badrequest()
+
+        if refreshtoken.id != accesstoken.id:
+            raise statuses.badrequest()
+
+        accesstoken = AccessToken.create_from_refreshtoken(refreshtoken)
+        self.session_new(req, accesstoken)
 
     def authenticate(self, req):
         settings = self._settings.accesstoken
@@ -162,7 +203,7 @@ class Authenticator:
             stoken = stoken[7:]
 
         try:
-            identity = AccessToken.loads(
+            accesstoken = AccessToken.loads(
                 stoken,
                 settings.leeway,
                 settings.algorithm,
@@ -174,10 +215,10 @@ class Authenticator:
         except TokenDecodeError:
             raise statuses.badrequest()
 
-        if self.blacklist_has(identity.id):
+        if self.blacklist_has(accesstoken.id):
             raise statuses.forbidden()
 
-        return identity
+        return accesstoken
 
     def __call__(self, roles=None):
         if isinstance(roles, str):
