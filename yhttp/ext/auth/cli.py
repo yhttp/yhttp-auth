@@ -33,7 +33,7 @@ class Create(SubCommand):
         else:
             payload = ''
 
-        token = app.auth.logintoken_create(args.id, args.roles)
+        token = app.auth.accesstoken_create(args.id, args.roles)
         token.update(payload)
         token.maxage = args.maxage
         print(token.dumps())

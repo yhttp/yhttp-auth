@@ -24,7 +24,7 @@ def test_refreshtoken(app, httpreq, redis):
     @text
     def refresh(req):
         refreshtoken = app.auth.refreshtoken_verify(req)
-        return app.auth.logintoken_dump_from_refreshtoken(
+        return app.auth.accesstoken_dump_from_refreshtoken(
             refreshtoken, dict(foo='bar'))
 
     @app.route('/tokens')
@@ -63,7 +63,7 @@ def test_refreshtoken(app, httpreq, redis):
         when(headers={'Cookie': cookie})
         assert status == 201
         token = response.text
-        assert app.auth.logintoken_decode(token) == {
+        assert app.auth.accesstoken_decode(token) == {
             'id': 'alice',
             'baz': 'qux',
             'foo': 'bar',

@@ -24,7 +24,7 @@ def test_authorization_token(app, httpreq, redis):
     def get(req):
         return req.identity.roles
 
-    token = app.auth.logintoken_dump('foo')
+    token = app.auth.accesstoken_dump('foo')
     with httpreq(headers={'Authorization': f'Bearer {token}'}):
         assert status == 200
         assert response.text == 'foo'
@@ -38,7 +38,7 @@ def test_authorization_token(app, httpreq, redis):
         when(headers={'Authorization': 'Bearer mAlfoRMeD'})
         assert status == 401
 
-    token = app.auth.logintoken_dump('foo', dict(roles=['admin']))
+    token = app.auth.accesstoken_dump('foo', dict(roles=['admin']))
     with httpreq('/admin', headers={'Authorization': f'Bearer {token}'}):
         assert status == 200
         assert response.json == ['admin']
@@ -54,11 +54,11 @@ def test_authorization_token(app, httpreq, redis):
         when()
         assert status == 200
 
-        token = app.auth.logintoken_dump('foo', dict(roles=['editor']))
+        token = app.auth.accesstoken_dump('foo', dict(roles=['editor']))
         when(headers={'Authorization': f'Bearer {token}'})
         assert status == 403
 
-        token = app.auth.logintoken_dump('foo')
+        token = app.auth.accesstoken_dump('foo')
         when(headers={'Authorization': f'Bearer {token}'})
         assert status == 403
 

@@ -15,8 +15,8 @@ class Authenticator:
     def __init__(self, settings):
         self.settings = settings
 
-    def logintoken_create(self, id, roles: list[str]) -> LoginToken:
-        return LoginToken(self.settings.logintoken, id, roles)
+    def accesstoken_create(self, id, roles: list[str]) -> AccessToken:
+        return AccessToken(self.settings.accesstoken, id, roles)
 
     def csrftoken_create(self) -> CSRFToken:
         return CSRFToken(self.settings.csrftoken)
@@ -203,8 +203,8 @@ class Authenticator:
     #########
 
 
-    def logintoken_dump_from_refreshtoken(self, refresh, attrs=None):
-        settings = self.settings.logintoken
+    def accesstoken_dump_from_refreshtoken(self, refresh, attrs=None):
+        settings = self.settings.accesstoken
         payload = refresh.payload.copy()
         del payload['refresh']
 
@@ -218,8 +218,8 @@ class Authenticator:
             algorithm=settings.algorithm
         )
 
-    def _logintoken_cookie_set(self, req, token):
-        settings = self.settings.logintoken.cookie
+    def _accesstoken_cookie_set(self, req, token):
+        settings = self.settings.accesstoken.cookie
 
         # Set cookie
         entry = req.response.setcookie(settings.key, token)
@@ -239,14 +239,14 @@ class Authenticator:
         entry['path'] = settings.path or req.path
         return entry
 
-    def logintoken_cookie_set(self, req, token):
-        settings = self.settings.logintoken
-        entry = self._logintoken_cookie_set(req, token)
+    def accesstoken_cookie_set(self, req, token):
+        settings = self.settings.accesstoken
+        entry = self._accesstoken_cookie_set(req, token)
         if settings.maxage:
             entry['max-age'] = settings.maxage
 
-    def logintoken_cookie_delete(self, req):
-        entry = self._logintoken_cookie_set(req, '')
+    def accesstoken_cookie_delete(self, req):
+        entry = self._accesstoken_cookie_set(req, '')
         entry['expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
         return entry
 
@@ -257,7 +257,7 @@ class Authenticator:
         def decorator(handler):
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
-                req.identity = self.logintoken_verify(req)
+                req.identity = self.accesstoken_verify(req)
                 if roles is not None:
                     req.identity.isinroles(*roles)
 

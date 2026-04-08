@@ -94,7 +94,7 @@ class JWTToken(Token):
             raise AttributeError()
 
 
-class LoginToken(JWTToken):
+class AccessToken(JWTToken):
     def __init__(self, id, roles=None, payload=None):
         payload_ = payload.copy() if payload else {}
         payload_['id'] = id
@@ -123,7 +123,7 @@ class LoginToken(JWTToken):
         return cls(id, roles, payload)
 
 
-class RefreshToken(LoginToken):
+class RefreshToken(AccessToken):
     @classmethod
-    def create_from_logintoken(cls, logintoken):
-        return cls(logintoken.id, logintoken.payload)
+    def create_from_accesstoken(cls, accesstoken):
+        return cls(accesstoken.id, accesstoken.payload)

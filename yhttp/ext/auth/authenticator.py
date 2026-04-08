@@ -8,7 +8,7 @@ from pymlconf import MergableDict
 from yhttp.core import statuses
 
 from .token import Token, JWTToken, TokenExpiredError, TokenDecodeError, \
-    LoginToken, CSRFToken, RefreshToken
+    AccessToken, CSRFToken, RefreshToken
 
 
 class Authenticator:
@@ -22,13 +22,13 @@ class Authenticator:
         port: 6379
         db: 0
 
-      logintoken:
+      accesstoken:
         maxage: 3600     # seconds
         leeway: 10       # seconds
         secret: '12345678901234567890123456789012'
         algorithm: HS256
         cookie:
-          key: yhttp-logintoken
+          key: yhttp-accesstoken
           secure: false
           httponly: true
           samesite: Strict
@@ -81,8 +81,8 @@ class Authenticator:
     def cookie_token_delete(self, req, type_: type):
         if type_ is RefreshToken:
             settings = self._settings.refreshtoken
-        elif type_ is LoginToken:
-            settings = self._settings.logintoken
+        elif type_ is AccessToken:
+            settings = self._settings.accesstoken
         else:
             raise TypeError(f'{type_} is not supported')
 
@@ -100,8 +100,8 @@ class Authenticator:
     def cookie_token_set(self, req, token: Token):
         if isinstance(token, RefreshToken):
             settings = self._settings.refreshtoken
-        elif isinstance(token, LoginToken):
-            settings = self._settings.logintoken
+        elif isinstance(token, AccessToken):
+            settings = self._settings.accesstoken
         elif isinstance(token, CSRFToken):
             settings = self._settings.csrftoken
         else:
@@ -135,21 +135,21 @@ class Authenticator:
         size = size or self._settings.csrftoken.size
         return CSRFToken(hashlib.sha256(os.urandom(size)).hexdigest())
 
-    def session_new(self, req, token: LoginToken):
+    def session_new(self, req, token: AccessToken):
         self.cookie_token_set(req, token)
         if self._settings.refreshtoken.enabled:
-            refreshtoken = RefreshToken.create_from_logintoken(token)
+            refreshtoken = RefreshToken.create_from_accesstoken(token)
             self.cookie_token_set(req, refreshtoken)
 
     def session_delete(self, req):
-        self.cookie_token_delete(req, LoginToken)
+        self.cookie_token_delete(req, AccessToken)
         self.cookie_token_delete(req, RefreshToken)
 
     def session_refresh(self, req):
         pass
 
     def authenticate(self, req):
-        settings = self._settings.logintoken
+        settings = self._settings.accesstoken
         cookie = req.cookies.get(settings.cookie.key)
         if cookie:
             stoken = cookie.value
@@ -162,7 +162,7 @@ class Authenticator:
             stoken = stoken[7:]
 
         try:
-            identity = LoginToken.loads(
+            identity = AccessToken.loads(
                 stoken,
                 settings.leeway,
                 settings.algorithm,

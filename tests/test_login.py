@@ -3,15 +3,15 @@ from freezegun import freeze_time
 
 from yhttp.core import statuscode, text
 
-from yhttp.ext.auth import install, LoginToken, RefreshToken
+from yhttp.ext.auth import install, AccessToken, RefreshToken
 
 
 @freeze_time('2020-01-01 00:00:01')
-def test_login(app, httpreq, redis):
+def test_login_refresh(app, httpreq, redis):
     install(app)
     app.settings.auth.merge('''
     domain: example.com
-    logintoken:
+    accesstoken:
       maxage: 30
     refreshtoken:
       maxage: 3600
@@ -22,7 +22,7 @@ def test_login(app, httpreq, redis):
     @app.route('/tokens')
     @statuscode('201 Created')
     def create(req):
-        token = LoginToken('Alice')
+        token = AccessToken('Alice')
         app.auth.session_new(req, token)
 
     @app.route('/tokens')
@@ -46,7 +46,7 @@ def test_login(app, httpreq, redis):
                  path='/tokens',
                  verb='CREATE'):
         assert status == 201
-        assert response.cookies['yhttp-logintoken'].endswith(
+        assert response.cookies['yhttp-accesstoken'].endswith(
             'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
             'SameSite=Strict'
         )
@@ -54,7 +54,7 @@ def test_login(app, httpreq, redis):
             'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; '
             'SameSite=Strict'
         )
-        logintoken = response.cookies['yhttp-logintoken'].split(';', 1)[0]
+        accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
 
     with httpreq(title='Visit protected resource wihtout token',
                  path='/',
@@ -64,7 +64,7 @@ def test_login(app, httpreq, redis):
     with httpreq(title='Visit protected resource with token',
                  path='/',
                  verb='WHOAMI',
-                 cookies={'yhttp-logintoken': logintoken}):
+                 cookies={'yhttp-accesstoken': accesstoken}):
         assert status == 200
         assert response.text == 'You are Alice'
 
@@ -78,7 +78,7 @@ def test_login(app, httpreq, redis):
             #      path='/tokens'
             #      verb='REFRESH')
             # assert status == 201
-            # assert response.cookies['yhttp-logintoken'].endswith(
+            # assert response.cookies['yhttp-accesstoken'].endswith(
             #     'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
             #     'SameSite=Strict'
             # )
@@ -91,7 +91,7 @@ def test_login(app, httpreq, redis):
              path='/tokens',
              verb='DELETE')
         assert status == 204
-        assert response.cookies['yhttp-logintoken'] == \
+        assert response.cookies['yhttp-accesstoken'] == \
             '""; Domain=example.com; expires=Thu, 01 Jan 1970 00:00:00 GMT; ' \
             'HttpOnly; Path=/; SameSite=Strict'
         assert response.cookies['yhttp-refreshtoken'] == \
