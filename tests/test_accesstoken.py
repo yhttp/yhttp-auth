@@ -3,7 +3,7 @@ from freezegun import freeze_time
 
 from yhttp.core import statuscode, text
 
-from yhttp.ext.auth import install, AccessToken, RefreshToken
+from yhttp.ext.auth import install, AccessToken
 
 
 @freeze_time('2020-01-01 00:00:01')
@@ -43,10 +43,10 @@ def test_accesstoken(app, httpreq, redis):
         return f'You are {req.identity.id}'
 
     @app.route('/admin')
-    @app.auth(roles='admin')
+    @app.auth(roles='admin, god')
     @text
     def get(req):
-        return f'Restricted admin area'
+        return 'Restricted admin area'
 
     with httpreq(title='Visit protected resource wihtout token',
                  path='/',
@@ -67,7 +67,7 @@ def test_accesstoken(app, httpreq, redis):
             f'{accesstoken_expected}; ' \
             'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
             'SameSite=Strict'
-        assert not 'yhttp-refreshtoken' in response.cookies
+        assert 'yhttp-refreshtoken' not in response.cookies
         accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
 
     with httpreq(title='Visit protected resource with authorization header',

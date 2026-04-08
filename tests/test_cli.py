@@ -31,23 +31,23 @@ def test_jwtcli():
         assert stderr == ''
 
         # Without Payload
-        when('auth token create foo')
+        when('auth access-token create foo')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # With Payload
-        when('auth token create foo \'{"roles": ["admin"]}\'')
+        when('auth access-token create foo \'{"roles": ["admin"]}\'')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # Max age
-        when('auth token create --maxage 10 foo')
+        when('auth access-token create --maxage 10 foo')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3
 
         # Without id
-        when('auth token create')
+        when('auth access-token create')
         assert status == 2

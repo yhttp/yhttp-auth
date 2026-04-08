@@ -1,5 +1,4 @@
 import abc
-from typing import Union
 from datetime import datetime, timezone, timedelta
 
 import jwt

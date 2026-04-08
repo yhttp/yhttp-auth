@@ -3,8 +3,6 @@ import redis
 import hashlib
 import functools
 
-from pymlconf import MergableDict
-
 from yhttp.core import statuses
 
 from .token import Token, TokenExpiredError, TokenDecodeError, AccessToken, \
@@ -78,13 +76,8 @@ class Authenticator:
     def blacklist_remove(self, id):
         self._redis.srem(self._settings.blacklist.key, id)
 
-    def cookie_token_delete(self, req, type_: type):
-        if type_ is RefreshToken:
-            settings = self._settings.refreshtoken
-        elif type_ is AccessToken:
-            settings = self._settings.accesstoken
-        else:
-            raise TypeError(f'{type_} is not supported')
+    def cookie_token_delete(self, req, tokentype: type):
+        settings = self.tokensettings(tokentype)
 
         return req.response.setcookie(
             settings.cookie.key,
@@ -97,16 +90,20 @@ class Authenticator:
             expires='Thu, 01 Jan 1970 00:00:00 GMT'
         )
 
-    def cookie_token_set(self, req, token: Token):
-        if isinstance(token, RefreshToken):
-            settings = self._settings.refreshtoken
-        elif isinstance(token, AccessToken):
-            settings = self._settings.accesstoken
-        elif isinstance(token, CSRFToken):
-            settings = self._settings.csrftoken
-        else:
-            raise TypeError(f'{type(token)} is not supported')
+    def tokensettings(self, tokentype: type):
+        if tokentype is RefreshToken:
+            return self._settings.refreshtoken
 
+        if tokentype is AccessToken:
+            return self._settings.accesstoken
+
+        if tokentype is CSRFToken:
+            return self._settings.csrftoken
+
+        raise TypeError(f'{tokentype} is not supported')
+
+    def cookie_token_set(self, req, token: Token):
+        settings = self.tokensettings(type(token))
         if isinstance(token, AccessToken):
             stoken = token.dumps(
                 settings.maxage,
