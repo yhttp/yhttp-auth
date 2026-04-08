@@ -7,8 +7,8 @@ from pymlconf import MergableDict
 
 from yhttp.core import statuses
 
-from .token import Token, JWTToken, TokenExpiredError, TokenDecodeError, \
-    AccessToken, CSRFToken, RefreshToken
+from .token import Token, TokenExpiredError, TokenDecodeError, AccessToken, \
+    CSRFToken, RefreshToken
 
 
 class Authenticator:
@@ -107,7 +107,7 @@ class Authenticator:
         else:
             raise TypeError(f'{type(token)} is not supported')
 
-        if isinstance(token, JWTToken):
+        if isinstance(token, AccessToken):
             stoken = token.dumps(
                 settings.maxage,
                 settings.secret,
