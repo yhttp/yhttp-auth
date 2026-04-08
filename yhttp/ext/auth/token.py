@@ -39,24 +39,8 @@ class CSRFToken(BaseToken):
 
 
 class JWTToken(BaseToken, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def dumps(self, maxage, secret, algorithm):
-        raise NotImplementedError()
-
-    @classmethod
-    @abc.abstractmethod
-    def loads(cls, stoken, leeway, algorithm, secret=None) -> dict:
-        raise NotImplementedError()
-
-
-class AccessToken(JWTToken):
-    def __init__(self, id, roles=None, payload=None):
-        self.id = id
-        self.roles = roles or ['user']
-        self.payload = payload or {}
-
-    def authorize(self, *roles):
-        return set(roles) & set(self.roles)
+    def __init__(self, payload):
+        self.payload = payload
 
     def _expirationtime(self, seconds: int):
         return datetime.now(tz=timezone.utc) + timedelta(seconds=seconds)
@@ -64,8 +48,6 @@ class AccessToken(JWTToken):
     def dumps(self, maxage, secret, algorithm):
         payload = self.payload.copy()
         payload['exp'] = self._expirationtime(maxage)
-        payload['id'] = self.id
-        payload['roles'] = self.roles
 
         return jwt.encode(
             payload,
@@ -94,62 +76,64 @@ class AccessToken(JWTToken):
         except jwt.ExpiredSignatureError:
             raise TokenExpiredError()
 
-        return cls(payload.pop('id'), payload.pop('roles'), payload)
+        return cls(payload)
+
+
+class AccessToken(JWTToken):
+    def __init__(self, id, roles=None, payload=None):
+        super().__init__(payload or {})
+        self.id = id
+        self.roles = roles or ['user']
+
+    @property
+    def id(self):
+        self.payload['id']
+
+    @id.setter
+    def id(self, id):
+        self.payload['id'] = id
+
+    @property
+    def roles(self):
+        self.payload['roles']
+
+    @roles.setter
+    def roles(self, roles):
+        self.payload['roles'] = roles
+
+    def authorize(self, *roles):
+        return set(roles) & set(self.roles)
 
     @classmethod
-    def create_from_refreshtoken(cls, refreshtoken):
-        id = refreshtoken.id
-        roles = refreshtoken.roles
-        payload = refreshtoken.payload.copy()
+    def create_from(cls, token: 'AccessToken'):
+        id = token.id
+        roles = token.roles
+        payload = token.payload.copy()
         return cls(id, roles, payload)
 
 
 class RefreshToken(AccessToken):
-    @classmethod
-    def create_from_accesstoken(cls, accesstoken):
-        id = accesstoken.id
-        roles = accesstoken.roles
-        payload = accesstoken.payload.copy()
-        return cls(id, roles, payload)
+    pass
 
 
 class OAuth2StateToken(JWTToken):
     def __init__(self, csrf, redirecturl, payload=None):
+        super().__init__(payload or {})
         self.csrf = csrf
         self.redirecturl = redirecturl
-        self.payload = payload or {}
 
-    def dumps(self, maxage, secret, algorithm):
-        payload = self.payload.copy()
-        payload['exp'] = self._expirationtime(maxage)
-        payload['csrf'] = self.csrf
-        payload['redirecturl'] = self.redirecturl
+    @property
+    def csrf(self):
+        self.payload['csrf']
 
-        return jwt.encode(
-            payload,
-            secret,
-            algorithm=algorithm
-        )
+    @csrf.setter
+    def csrf(self, csrf):
+        self.payload['csrf'] = csrf
 
-    @classmethod
-    def loads(cls, stoken, leeway, algorithm, secret=None) -> dict:
-        try:
-            if secret:
-                payload = jwt.decode(
-                    stoken,
-                    secret,
-                    leeway=leeway,
-                    algorithms=[algorithm]
-                )
-            else:
-                payload = jwt.decode(
-                    stoken,
-                    options={"verify_signature": False},
-                )
-        except jwt.DecodeError:
-            raise TokenDecodeError()
+    @property
+    def redirecturl(self):
+        self.payload['redirecturl']
 
-        except jwt.ExpiredSignatureError:
-            raise TokenExpiredError()
-
-        return cls(payload.pop('csrf'), payload.pop('redirecturl'), payload)
+    @redirecturl.setter
+    def redirecturl(self, redirecturl):
+        self.payload['redirecturl'] = redirecturl

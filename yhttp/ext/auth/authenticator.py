@@ -201,11 +201,12 @@ class Authenticator:
 
     def oauth2_session_new(self, req, redirecturl, payload) -> str:
         # generate a new csrf token and store into cookie
-        csrf = self.csrftoken_create()
-        self.cookie_token_set(req, csrf)
+        csrftoken = self.csrftoken_create()
+        scsrf = self.token_dump(csrftoken)
+        self.cookie_token_set(req, csrftoken)
 
         # generate an state token containing csrf and other info
-        statetoken = OAuth2StateToken(csrf, redirecturl, payload)
+        statetoken = OAuth2StateToken(scsrf, redirecturl, payload)
         return self.token_dump(statetoken)
 
     def oauth2_session_verify(self, req, stoken: str):

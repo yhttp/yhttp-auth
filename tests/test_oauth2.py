@@ -1,12 +1,19 @@
 from bddrest import status, response, when, given
+from freezegun import freeze_time
 
 from yhttp.core import json, statuses
 
 from yhttp.ext.auth import install
 
 
+@freeze_time('2020-01-01 00:00:01')
 def test_oauth2_state(app, httpreq, redis):
     install(app)
+    expected_statetoken = \
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJiYXIiOiJiYXoiLCJjc3JmIjoiMD' \
+        'c5OWRmZTE3NjMyZjlhYzBjNGUzNmQwZDUwODIyNzMzM2MxNTUzZDYyOGFmYTVjOGFhZ' \
+        'mYwZGYwMGJiMTg3NiIsInJlZGlyZWN0dXJsIjoiL2ZvbyIsImV4cCI6MTU3NzgzNjg2' \
+        'MX0.Yla2vkUMLUhmnUbtyDY_puv3OsrXEUUKNow1wtq9o-A'
 
     app.settings.auth.merge('''
       domain: example.com
@@ -27,7 +34,9 @@ def test_oauth2_state(app, httpreq, redis):
     #     assert state_.redurl == '/foo'
 
     with httpreq('/red'):
-        assert status == 301
+        assert status == 302
+        assert response.headers['location'] == \
+            f'https://oauth2.google.com?state={expected_statetoken}'
     #     cookie = response.headers['Set-Cookie']
     #     assert cookie.startswith('yhttp-csrftoken=')
     #     assert 'Max-Age' in cookie
