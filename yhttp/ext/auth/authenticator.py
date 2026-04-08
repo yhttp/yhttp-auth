@@ -7,8 +7,8 @@ from pymlconf import MergableDict
 
 from yhttp.core import statuses
 
-from .token import Token, JWTToken, TokenError, LoginToken, CSRFToken, \
-    RefreshToken
+from .token import Token, JWTToken, TokenExpiredError, TokenDecodeError, \
+    LoginToken, CSRFToken, RefreshToken
 
 
 class Authenticator:
@@ -171,7 +171,7 @@ class Authenticator:
         except TokenExpiredError:
             raise statuses.unauthorized()
 
-        except TokenError:
+        except TokenDecodeError:
             raise statuses.badrequest()
 
         if self.blacklist_has(identity.id):

@@ -27,7 +27,7 @@ def test_login(app, httpreq, redis):
 
     @app.route('/tokens')
     @statuscode('201 Created')
-    def get(req):
+    def refresh(req):
         app.auth.session_refresh(req)
 
     @app.route('/tokens')
@@ -74,9 +74,18 @@ def test_login(app, httpreq, redis):
                        'without the refresh token')
             assert status == 401
 
-            # when(title='Visit protected resource with expired token and with '
-            #            'the refresh token provided')
+            # when(title='Try to refresh token',
+            #      path='/tokens'
+            #      verb='REFRESH')
             # assert status == 201
+            # assert response.cookies['yhttp-logintoken'].endswith(
+            #     'Domain=example.com; HttpOnly; Max-Age=30; Path=/; '
+            #     'SameSite=Strict'
+            # )
+            # assert response.cookies['yhttp-refreshtoken'].endswith(
+            #     'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; '
+            #     'SameSite=Strict'
+            # )
 
         when(title='Logout',
              path='/tokens',
