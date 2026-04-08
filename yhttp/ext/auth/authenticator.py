@@ -5,8 +5,8 @@ import functools
 
 from yhttp.core import statuses
 
-from .token import Token, TokenExpiredError, TokenDecodeError, AccessToken, \
-    CSRFToken, RefreshToken
+from .token import BaseToken, JWTToken, TokenExpiredError, TokenDecodeError, \
+    AccessToken, CSRFToken, RefreshToken, OAuth2StateToken
 
 
 class Authenticator:
@@ -54,6 +54,13 @@ class Authenticator:
           maxage: 60  # 1 Minute
           samesite: Strict
           path:
+
+      oauth2:
+        statetoken:
+          algorithm: HS256
+          secret: '12345678901234567890123456789012'
+          maxage: 60   # 1 Minute
+          leeway: 10   # seconds
     '''
 
     def __init__(self, settings):
@@ -97,14 +104,17 @@ class Authenticator:
         if tokentype is AccessToken:
             return self._settings.accesstoken
 
+        if tokentype is OAuth2StateToken:
+            return self._settings.oauth2.statetoken
+
         if tokentype is CSRFToken:
             return self._settings.csrftoken
 
         raise TypeError(f'{tokentype} is not supported')
 
-    def cookie_token_set(self, req, token: Token):
+    def token_dump(self, token: BaseToken):
         settings = self.tokensettings(type(token))
-        if isinstance(token, AccessToken):
+        if isinstance(token, JWTToken):
             stoken = token.dumps(
                 settings.maxage,
                 settings.secret,
@@ -113,6 +123,11 @@ class Authenticator:
         else:
             stoken = token.dumps()
 
+        return stoken
+
+    def cookie_token_set(self, req, token: BaseToken):
+        settings = self.tokensettings(type(token))
+        stoken = self.token_dump(token)
         entry = req.response.setcookie(
             settings.cookie.key,
             stoken,
@@ -183,6 +198,18 @@ class Authenticator:
 
         accesstoken = AccessToken.create_from_refreshtoken(refreshtoken)
         self.session_new(req, accesstoken)
+
+    def oauth2_session_new(self, req, redirecturl, payload) -> str:
+        # generate a new csrf token and store into cookie
+        csrf = self.csrftoken_create()
+        self.cookie_token_set(req, csrf)
+
+        # generate an state token containing csrf and other info
+        statetoken = OAuth2StateToken(csrf, redirecturl, payload)
+        return self.token_dump(statetoken)
+
+    def oauth2_session_verify(self, req, stoken: str):
+        pass
 
     def authenticate(self, req):
         settings = self._settings.accesstoken

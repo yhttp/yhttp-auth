@@ -18,13 +18,11 @@ class TokenExpiredError(TokenError):
     pass
 
 
-class Token(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def dumps(self):
-        raise NotImplementedError()
+class BaseToken(metaclass=abc.ABCMeta):
+    pass
 
 
-class CSRFToken(Token):
+class CSRFToken(BaseToken):
     def __init__(self, digest: str):
         super().__init__()
         self._digest = digest
@@ -40,7 +38,18 @@ class CSRFToken(Token):
             raise statuses.unauthorized()
 
 
-class AccessToken(Token):
+class JWTToken(BaseToken, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def dumps(self, maxage, secret, algorithm):
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def loads(cls, stoken, leeway, algorithm, secret=None) -> dict:
+        raise NotImplementedError()
+
+
+class AccessToken(JWTToken):
     def __init__(self, id, roles=None, payload=None):
         self.id = id
         self.roles = roles or ['user']
@@ -102,3 +111,45 @@ class RefreshToken(AccessToken):
         roles = accesstoken.roles
         payload = accesstoken.payload.copy()
         return cls(id, roles, payload)
+
+
+class OAuth2StateToken(JWTToken):
+    def __init__(self, csrf, redirecturl, payload=None):
+        self.csrf = csrf
+        self.redirecturl = redirecturl
+        self.payload = payload or {}
+
+    def dumps(self, maxage, secret, algorithm):
+        payload = self.payload.copy()
+        payload['exp'] = self._expirationtime(maxage)
+        payload['csrf'] = self.csrf
+        payload['redirecturl'] = self.redirecturl
+
+        return jwt.encode(
+            payload,
+            secret,
+            algorithm=algorithm
+        )
+
+    @classmethod
+    def loads(cls, stoken, leeway, algorithm, secret=None) -> dict:
+        try:
+            if secret:
+                payload = jwt.decode(
+                    stoken,
+                    secret,
+                    leeway=leeway,
+                    algorithms=[algorithm]
+                )
+            else:
+                payload = jwt.decode(
+                    stoken,
+                    options={"verify_signature": False},
+                )
+        except jwt.DecodeError:
+            raise TokenDecodeError()
+
+        except jwt.ExpiredSignatureError:
+            raise TokenExpiredError()
+
+        return cls(payload.pop('csrf'), payload.pop('redirecturl'), payload)
