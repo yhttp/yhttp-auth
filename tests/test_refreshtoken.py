@@ -82,12 +82,6 @@ def test_refreshtoken(app, httpreq, redis):
         assert response.text == 'You are Alice'
 
         # simulate token expiration
-        timefreezer = freeze_time('2020-01-01 00:01:00')
-        timefreezer.start()
-        when(title='Visit protected resource with expired token and '
-                   'without the refresh token')
-        assert status == 401
-
         when(title='Try to refresh token without any access token',
              path='/tokens',
              verb='REFRESH',
@@ -95,6 +89,15 @@ def test_refreshtoken(app, httpreq, redis):
                  'yhttp-refreshtoken': refreshtoken,
              })
         assert status == 401
+
+        when(title='Try to refresh token with access token but without the '
+                   'refreshtoken',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+             })
+        assert status == 403
 
         when(title='Try to refresh token with malformed access token',
              path='/tokens',
@@ -105,18 +108,30 @@ def test_refreshtoken(app, httpreq, redis):
              })
         assert status == 400
 
-        # create expected access and refresh tokens
-        accesstoken_expected = AccessToken('Alice').dumps(
-            app.settings.auth.accesstoken.maxage,
-            app.settings.auth.accesstoken.secret,
-            app.settings.auth.accesstoken.algorithm,
-        )
-        refreshtoken_expected = RefreshToken('Alice').dumps(
+        when(title='Try to refresh token with malformed refresh token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+                 'yhttp-refreshtoken': 'malformed',
+             })
+        assert status == 400
+
+        bob_refreshtoken = RefreshToken('Bob').dumps(
             app.settings.auth.refreshtoken.maxage,
             app.settings.auth.refreshtoken.secret,
             app.settings.auth.refreshtoken.algorithm,
         )
-        when(title='Try to refresh token',
+        when(title='Try to refresh the access-token with Bob\'s refresh token',
+             path='/tokens',
+             verb='REFRESH',
+             cookies={
+                 'yhttp-accesstoken': accesstoken,
+                 'yhttp-refreshtoken': bob_refreshtoken,
+             })
+        assert status == 400
+
+        when(title='Try to refresh the access-token',
              path='/tokens',
              verb='REFRESH',
              cookies={
@@ -134,6 +149,17 @@ def test_refreshtoken(app, httpreq, redis):
             'SameSite=Strict'
         accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
 
+        with freeze_time('2020-01-01 02:00:00'):
+            when(title='Try to refresh the access-token when refresh-token is '
+                       'expired',
+                 path='/tokens',
+                 verb='REFRESH',
+                 cookies={
+                     'yhttp-accesstoken': accesstoken,
+                     'yhttp-refreshtoken': refreshtoken,
+                 })
+            assert status == 401
+
         when(title='Logout',
              path='/tokens',
              cookies={'yhttp-accesstoken': accesstoken},
@@ -150,5 +176,4 @@ def test_refreshtoken(app, httpreq, redis):
              cookies={'yhttp-accesstoken': accesstoken})
 
         # free the time
-        timefreezer.stop()
         app.shutdown()

@@ -166,7 +166,7 @@ class Authenticator:
         refreshsettings = self._settings.refreshtoken
         refreshcookie = req.cookies.get(refreshsettings.cookie.key)
         if not refreshcookie:
-            raise statuses.unauthorized()
+            raise statuses.forbidden()
 
         try:
             refreshtoken = RefreshToken.loads(
