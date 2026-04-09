@@ -3,8 +3,9 @@ import functools
 
 from yhttp.core import statuses
 
-from .token import Token, JWTToken, TokenExpiredError, TokenDecodeError, \
-    AccessToken, CSRFToken, RefreshToken, OAuth2StateToken
+from .exceptions import TokenExpiredError, TokenDecodeError
+from .token import Token, JWTToken, AccessToken, CSRFToken, RefreshToken, \
+    OAuth2StateToken
 
 
 class Authenticator:
@@ -168,38 +169,33 @@ class Authenticator:
         )
         return token
 
+    def token_fromcookie(self, req, type_: type, verifyexp=True):
+        settings = self.tokensettings(type_)
+        cookie = req.cookies.get(settings.cookie.key)
+        if not cookie or not cookie.value:
+            raise ValueError()
+
+        return self.token_loads(
+            cookie.value,
+            type_,
+            verifyexp=verifyexp,
+        )
+
     def session_refresh(self, req):
         # ensure the access token (even expired) but not invalid
-        accesssettings = self._settings.accesstoken
-        accesscookie = req.cookies.get(accesssettings.cookie.key)
-        if not accesscookie:
-            raise statuses.unauthorized()
-
         try:
-            accesstoken = self.token_loads(
-                accesscookie.value,
+            accesstoken = self.token_fromcookie(
+                req,
                 AccessToken,
-                verifyexp=False,
+                verifyexp=False
             )
 
-        except TokenDecodeError:
-            raise statuses.badrequest()
-
-        refreshsettings = self._settings.refreshtoken
-        refreshcookie = req.cookies.get(refreshsettings.cookie.key)
-        if not refreshcookie:
-            raise statuses.forbidden()
-
-        try:
-            refreshtoken = self.token_loads(
-                refreshcookie.value,
+            refreshtoken = self.token_fromcookie(
+                req,
                 RefreshToken
             )
-        except TokenExpiredError:
+        except (ValueError, TokenDecodeError, TokenExpiredError):
             raise statuses.unauthorized()
-
-        except TokenDecodeError:
-            raise statuses.badrequest()
 
         if refreshtoken.id != accesstoken.id:
             raise statuses.badrequest()
@@ -217,19 +213,15 @@ class Authenticator:
         statetoken = OAuth2StateToken(scsrf, redirecturl, **payload)
         return self.token_dumps(statetoken)
 
-    def oauth2_session_verify(self, req, stoken: str):
+    def oauth2_session_verify(self, req, sstatetoken: str):
         clientcsrf = req.cookies.get('yhttp-csrftoken')
         if not clientcsrf or not clientcsrf.value:
             raise statuses.badrequest()
 
-        clientcsrf = clientcsrf.value
-        settings = self.tokensettings(OAuth2StateToken)
         try:
-            token = OAuth2StateToken.loads(
-                stoken,
-                settings.leeway,
-                settings.algorithm,
-                settings.secret
+            token = self.token_loads(
+                sstatetoken,
+                OAuth2StateToken
             )
         except TokenExpiredError:
             raise statuses.unauthorized()
@@ -237,7 +229,7 @@ class Authenticator:
         except TokenDecodeError:
             raise statuses.badrequest()
 
-        if token.csrf != clientcsrf:
+        if token.csrf != clientcsrf.value:
             raise statuses.forbidden()
 
         return token
@@ -256,12 +248,7 @@ class Authenticator:
             stoken = stoken[7:]
 
         try:
-            accesstoken = AccessToken.loads(
-                stoken,
-                settings.leeway,
-                settings.algorithm,
-                settings.secret
-            )
+            accesstoken = self.token_loads(stoken, AccessToken)
         except TokenExpiredError:
             raise statuses.unauthorized()
 

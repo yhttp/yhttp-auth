@@ -5,17 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 import jwt
 
-
-class TokenError(Exception):
-    pass
-
-
-class TokenDecodeError(TokenError):
-    pass
-
-
-class TokenExpiredError(TokenError):
-    pass
+from . import exceptions
 
 
 class Token(metaclass=abc.ABCMeta):
@@ -60,10 +50,10 @@ class JWTToken(Token, metaclass=abc.ABCMeta):
                 options={"verify_exp": verifyexp},
             )
         except jwt.DecodeError:
-            raise TokenDecodeError()
+            raise exceptions.TokenDecodeError()
 
         except jwt.ExpiredSignatureError:
-            raise TokenExpiredError()
+            raise exceptions.TokenExpiredError()
 
         return cls(**payload)
 

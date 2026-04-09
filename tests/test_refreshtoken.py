@@ -97,7 +97,7 @@ def test_refreshtoken(app, httpreq, redis):
              cookies={
                  'yhttp-accesstoken': accesstoken,
              })
-        assert status == 403
+        assert status == 401
 
         when(title='Try to refresh token with malformed access token',
              path='/tokens',
@@ -106,7 +106,7 @@ def test_refreshtoken(app, httpreq, redis):
                  'yhttp-accesstoken': 'malformed-token',
                  'yhttp-refreshtoken': refreshtoken,
              })
-        assert status == 400
+        assert status == 401
 
         when(title='Try to refresh token with malformed refresh token',
              path='/tokens',
@@ -115,7 +115,7 @@ def test_refreshtoken(app, httpreq, redis):
                  'yhttp-accesstoken': accesstoken,
                  'yhttp-refreshtoken': 'malformed',
              })
-        assert status == 400
+        assert status == 401
 
         bob_refreshtoken = RefreshToken('Bob').dumps(
             app.settings.auth.refreshtoken.maxage,
