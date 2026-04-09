@@ -1,2 +1,3 @@
-mutex to not generate multiple refresh tokens for a single client
-store csrf into redis
+- mutex to prevent generate multiple refresh tokens for a single client
+- store csrf into redis
+- csrf token rotation and atomic pop to prevent race-condition
