@@ -173,7 +173,7 @@ class Authenticator:
         settings = self.tokensettings(type_)
         cookie = req.cookies.get(settings.cookie.key)
         if not cookie or not cookie.value:
-            raise ValueError()
+            raise CookieMissingError()
 
         return self.token_loads(
             cookie.value,
@@ -183,22 +183,19 @@ class Authenticator:
 
     def session_refresh(self, req):
         # ensure the access token (even expired) but not invalid
-        try:
-            accesstoken = self.token_fromcookie(
-                req,
-                AccessToken,
-                verifyexp=False
-            )
+        accesstoken = self.token_fromcookie(
+            req,
+            AccessToken,
+            verifyexp=False
+        )
 
-            refreshtoken = self.token_fromcookie(
-                req,
-                RefreshToken
-            )
-        except (ValueError, TokenDecodeError, TokenExpiredError):
-            raise statuses.unauthorized()
+        refreshtoken = self.token_fromcookie(
+            req,
+            RefreshToken
+        )
 
         if refreshtoken.id != accesstoken.id:
-            raise statuses.badrequest()
+            raise TokenMissmatchError()
 
         accesstoken = AccessToken.create_from(refreshtoken)
         self.session_new(req, accesstoken)
@@ -216,21 +213,15 @@ class Authenticator:
     def oauth2_session_verify(self, req, sstatetoken: str):
         clientcsrf = req.cookies.get('yhttp-csrftoken')
         if not clientcsrf or not clientcsrf.value:
-            raise statuses.badrequest()
+            raise CookieMissingError()
 
-        try:
-            token = self.token_loads(
-                sstatetoken,
-                OAuth2StateToken
-            )
-        except TokenExpiredError:
-            raise statuses.unauthorized()
-
-        except TokenDecodeError:
-            raise statuses.badrequest()
+        token = self.token_loads(
+            sstatetoken,
+            OAuth2StateToken
+        )
 
         if token.csrf != clientcsrf.value:
-            raise statuses.forbidden()
+            raise TokenMissmatchError()
 
         return token
 
@@ -243,20 +234,14 @@ class Authenticator:
         else:
             stoken = req.headers.get('Authorization')
             if stoken is None or not stoken.startswith('Bearer '):
-                raise statuses.unauthorized()
+                raise HeaderMissingError()
 
             stoken = stoken[7:]
 
-        try:
-            accesstoken = self.token_loads(stoken, AccessToken)
-        except TokenExpiredError:
-            raise statuses.unauthorized()
-
-        except TokenDecodeError:
-            raise statuses.badrequest()
+        accesstoken = self.token_loads(stoken, AccessToken)
 
         if self.blacklist_has(accesstoken.id):
-            raise statuses.forbidden()
+            raise BlacklistError()
 
         return accesstoken
 
