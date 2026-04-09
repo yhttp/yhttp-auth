@@ -18,11 +18,11 @@ class TokenExpiredError(TokenError):
     pass
 
 
-class BaseToken(metaclass=abc.ABCMeta):
+class Token(metaclass=abc.ABCMeta):
     pass
 
 
-class CSRFToken(BaseToken):
+class CSRFToken(Token):
     def __init__(self, size: int):
         super().__init__()
         self._digest = hashlib.sha256(os.urandom(size)).hexdigest()
@@ -31,7 +31,7 @@ class CSRFToken(BaseToken):
         return self._digest
 
 
-class JWTToken(BaseToken, metaclass=abc.ABCMeta):
+class JWTToken(Token, metaclass=abc.ABCMeta):
     def __init__(self, **payload):
         self.payload = payload
 
@@ -49,20 +49,16 @@ class JWTToken(BaseToken, metaclass=abc.ABCMeta):
         )
 
     @classmethod
-    def loads(cls, stoken, leeway, algorithm, secret=None) -> dict:
+    def loads(cls, stoken, leeway, algorithm, secret=None,
+              verifyexp=True) -> dict:
         try:
-            if secret:
-                payload = jwt.decode(
-                    stoken,
-                    secret,
-                    leeway=leeway,
-                    algorithms=[algorithm]
-                )
-            else:
-                payload = jwt.decode(
-                    stoken,
-                    options={"verify_signature": False},
-                )
+            payload = jwt.decode(
+                stoken,
+                secret,
+                leeway=leeway,
+                algorithms=[algorithm],
+                options={"verify_exp": verifyexp},
+            )
         except jwt.DecodeError:
             raise TokenDecodeError()
 
