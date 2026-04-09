@@ -1,6 +1,5 @@
 import os
 import redis
-import hashlib
 import functools
 
 from yhttp.core import statuses
@@ -98,14 +97,14 @@ class Authenticator:
         )
 
     def tokensettings(self, tokentype: type):
+        if tokentype is OAuth2StateToken:
+            return self._settings.oauth2.statetoken
+
         if tokentype is RefreshToken:
             return self._settings.refreshtoken
 
         if tokentype is AccessToken:
             return self._settings.accesstoken
-
-        if tokentype is OAuth2StateToken:
-            return self._settings.oauth2.statetoken
 
         if tokentype is CSRFToken:
             return self._settings.csrftoken
@@ -140,17 +139,19 @@ class Authenticator:
 
         if hasattr(settings, 'maxage'):
             entry['max-age'] = settings.maxage
+        elif hasattr(settings.cookie, 'maxage'):
+            entry['max-age'] = settings.cookie.maxage
 
         return entry
 
     def csrftoken_create(self, size=None):
         size = size or self._settings.csrftoken.size
-        return CSRFToken(hashlib.sha256(os.urandom(size)).hexdigest())
+        return CSRFToken(size)
 
     def session_new(self, req, token: AccessToken):
         self.cookie_token_set(req, token)
         if self._settings.refreshtoken.enabled:
-            refreshtoken = RefreshToken.create_from_accesstoken(token)
+            refreshtoken = RefreshToken.create_from(token)
             self.cookie_token_set(req, refreshtoken)
 
     def session_delete(self, req):
@@ -196,7 +197,7 @@ class Authenticator:
         if refreshtoken.id != accesstoken.id:
             raise statuses.badrequest()
 
-        accesstoken = AccessToken.create_from_refreshtoken(refreshtoken)
+        accesstoken = AccessToken.create_from(refreshtoken)
         self.session_new(req, accesstoken)
 
     def oauth2_session_new(self, req, redirecturl, payload) -> str:
@@ -206,11 +207,33 @@ class Authenticator:
         self.cookie_token_set(req, csrftoken)
 
         # generate an state token containing csrf and other info
-        statetoken = OAuth2StateToken(scsrf, redirecturl, payload)
+        statetoken = OAuth2StateToken(scsrf, redirecturl, **payload)
         return self.token_dump(statetoken)
 
     def oauth2_session_verify(self, req, stoken: str):
-        pass
+        clientcsrf = req.cookies.get('yhttp-csrftoken')
+        if not clientcsrf or not clientcsrf.value:
+            raise statuses.badrequest()
+
+        clientcsrf = clientcsrf.value
+        settings = self.tokensettings(OAuth2StateToken)
+        try:
+            token = OAuth2StateToken.loads(
+                stoken,
+                settings.leeway,
+                settings.algorithm,
+                settings.secret
+            )
+        except TokenExpiredError:
+            raise statuses.unauthorized()
+
+        except TokenDecodeError:
+            raise statuses.badrequest()
+
+        if token.csrf != clientcsrf:
+            raise statuses.forbidden()
+
+        return token
 
     def authenticate(self, req):
         settings = self._settings.accesstoken

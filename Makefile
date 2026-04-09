@@ -8,7 +8,8 @@ PYDEPS_COMMON = \
 	'pytest >= 7.4.4, < 8' \
 	'bddrest >= 6.3.2, < 7' \
 	'bddcli >= 2.10.1, < 3' \
-	'pytest-fixkit >= 1.0.3'
+	'pytest-fixkit >= 1.0.3' \
+	'pytest-mock'
 
 
 

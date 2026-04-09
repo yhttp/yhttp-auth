@@ -35,7 +35,7 @@ class AccessTokenCreate(SubCommand):
         else:
             payload = {}
 
-        token = AccessToken(args.id, args.roles, payload)
+        token = AccessToken(args.id, args.roles, **payload)
         settings = app.auth.tokensettings(type(token))
         stoken = token.dumps(
             args.maxage or settings.maxage,

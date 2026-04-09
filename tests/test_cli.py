@@ -37,7 +37,7 @@ def test_jwtcli():
         assert len(stdout.split('.')) == 3
 
         # With Payload
-        when('auth access-token create foo \'{"roles": ["admin"]}\'')
+        when('auth access-token create foo --role admin')
         assert stderr == ''
         assert status == 0
         assert len(stdout.split('.')) == 3

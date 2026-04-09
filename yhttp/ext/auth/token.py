@@ -1,4 +1,6 @@
+import os
 import abc
+import hashlib
 from datetime import datetime, timezone, timedelta
 
 import jwt
@@ -23,9 +25,9 @@ class BaseToken(metaclass=abc.ABCMeta):
 
 
 class CSRFToken(BaseToken):
-    def __init__(self, digest: str):
+    def __init__(self, size: int):
         super().__init__()
-        self._digest = digest
+        self._digest = hashlib.sha256(os.urandom(size)).hexdigest()
 
     def dumps(self):
         return self._digest
@@ -33,13 +35,9 @@ class CSRFToken(BaseToken):
     def verify(self, digest):
         return digest == self._digest
 
-    def assert_(self, digest: str):
-        if not self.verify(digest):
-            raise statuses.unauthorized()
-
 
 class JWTToken(BaseToken, metaclass=abc.ABCMeta):
-    def __init__(self, payload):
+    def __init__(self, **payload):
         self.payload = payload
 
     def _expirationtime(self, seconds: int):
@@ -76,18 +74,16 @@ class JWTToken(BaseToken, metaclass=abc.ABCMeta):
         except jwt.ExpiredSignatureError:
             raise TokenExpiredError()
 
-        return cls(payload)
+        return cls(**payload)
 
 
 class AccessToken(JWTToken):
-    def __init__(self, id, roles=None, payload=None):
-        super().__init__(payload or {})
-        self.id = id
-        self.roles = roles or ['user']
+    def __init__(self, id, roles=None, **payload):
+        super().__init__(id=id, roles=roles or ['user'], **payload)
 
     @property
     def id(self):
-        self.payload['id']
+        return self.payload['id']
 
     @id.setter
     def id(self, id):
@@ -95,7 +91,7 @@ class AccessToken(JWTToken):
 
     @property
     def roles(self):
-        self.payload['roles']
+        return self.payload['roles']
 
     @roles.setter
     def roles(self, roles):
@@ -106,10 +102,7 @@ class AccessToken(JWTToken):
 
     @classmethod
     def create_from(cls, token: 'AccessToken'):
-        id = token.id
-        roles = token.roles
-        payload = token.payload.copy()
-        return cls(id, roles, payload)
+        return cls(**token.payload)
 
 
 class RefreshToken(AccessToken):
@@ -117,14 +110,12 @@ class RefreshToken(AccessToken):
 
 
 class OAuth2StateToken(JWTToken):
-    def __init__(self, csrf, redirecturl, payload=None):
-        super().__init__(payload or {})
-        self.csrf = csrf
-        self.redirecturl = redirecturl
+    def __init__(self, csrf, redirecturl, **payload):
+        super().__init__(csrf=csrf, redirecturl=redirecturl, **payload)
 
     @property
     def csrf(self):
-        self.payload['csrf']
+        return self.payload['csrf']
 
     @csrf.setter
     def csrf(self, csrf):
@@ -132,7 +123,7 @@ class OAuth2StateToken(JWTToken):
 
     @property
     def redirecturl(self):
-        self.payload['redirecturl']
+        return self.payload['redirecturl']
 
     @redirecturl.setter
     def redirecturl(self, redirecturl):
