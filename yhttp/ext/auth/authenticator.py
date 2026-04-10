@@ -3,7 +3,8 @@ import functools
 
 from yhttp.core import statuses
 
-from .exceptions import TokenExpiredError, TokenDecodeError
+from .exceptions import TokenExpiredError, TokenDecodeError, \
+    TokenMissingError, BlacklistError, TokenMissmatchError
 from .token import Token, JWTToken, AccessToken, CSRFToken, RefreshToken, \
     OAuth2StateToken
 
@@ -173,7 +174,7 @@ class Authenticator:
         settings = self.tokensettings(type_)
         cookie = req.cookies.get(settings.cookie.key)
         if not cookie or not cookie.value:
-            raise CookieMissingError()
+            raise TokenMissingError()
 
         return self.token_loads(
             cookie.value,
@@ -213,7 +214,7 @@ class Authenticator:
     def oauth2_session_verify(self, req, sstatetoken: str):
         clientcsrf = req.cookies.get('yhttp-csrftoken')
         if not clientcsrf or not clientcsrf.value:
-            raise CookieMissingError()
+            raise TokenMissingError()
 
         token = self.token_loads(
             sstatetoken,
@@ -234,7 +235,7 @@ class Authenticator:
         else:
             stoken = req.headers.get('Authorization')
             if stoken is None or not stoken.startswith('Bearer '):
-                raise HeaderMissingError()
+                raise TokenMissingError()
 
             stoken = stoken[7:]
 
@@ -245,17 +246,26 @@ class Authenticator:
 
         return accesstoken
 
-    def __call__(self, roles=None):
+    def __call__(self, roles=None, unauthorized=statuses.unauthorized,
+                 forbidden=statuses.forbidden):
         if isinstance(roles, str):
             roles = [i.strip() for i in roles.split(',')]
 
         def decorator(handler):
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
-                req.identity = self.authenticate(req)
+                try:
+                    req.identity = self.authenticate(req)
+                except (TokenDecodeError, TokenMissingError,
+                        TokenExpiredError):
+                    raise unauthorized()
+
+                except BlacklistError:
+                    raise forbidden()
+
                 if roles:
                     if not req.identity.authorize(*roles):
-                        raise statuses.forbidden()
+                        raise forbidden()
 
                 return handler(req, *args, **kw)
 

@@ -57,7 +57,7 @@ def test_accesstoken(app, httpreq, redis):
                  path='/',
                  verb='WHOAMI',
                  cookies={'yhttp-accesstoken': 'malformed'}):
-        assert status == 400
+        assert status == 401
 
     with httpreq(title='Create a token(aka Login)',
                  path='/tokens',

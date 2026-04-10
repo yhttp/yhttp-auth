@@ -14,7 +14,7 @@ class TokenMissmatchError(AuthException):
     pass
 
 
-class CookieMissingError(AuthException):
+class TokenMissingError(AuthException):
     pass
 
 

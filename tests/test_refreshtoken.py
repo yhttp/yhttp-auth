@@ -1,9 +1,11 @@
 from bddrest import status, response, when
 from freezegun import freeze_time
 
-from yhttp.core import statuscode, text
+from yhttp.core import statuscode, text, statuses
 
-from yhttp.ext.auth import install, AccessToken, RefreshToken
+from yhttp.ext.auth import install, AccessToken, RefreshToken, \
+    TokenMissingError, TokenDecodeError, TokenMissmatchError, \
+    TokenExpiredError
 
 
 @freeze_time('2020-01-01 00:00:01')
@@ -40,7 +42,11 @@ def test_refreshtoken(app, httpreq, redis):
     @app.route('/tokens')
     @statuscode('201 Created')
     def refresh(req):
-        app.auth.session_refresh(req)
+        try:
+            app.auth.session_refresh(req)
+        except (TokenMissingError, TokenDecodeError, TokenMissmatchError,
+                TokenExpiredError):
+            raise statuses.unauthorized()
 
     @app.route('/tokens')
     @app.auth()
@@ -129,7 +135,7 @@ def test_refreshtoken(app, httpreq, redis):
                  'yhttp-accesstoken': accesstoken,
                  'yhttp-refreshtoken': bob_refreshtoken,
              })
-        assert status == 400
+        assert status == 401
 
         when(title='Try to refresh the access-token',
              path='/tokens',

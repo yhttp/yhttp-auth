@@ -4,7 +4,8 @@ from freezegun import freeze_time
 
 from yhttp.core import json, statuses
 
-from yhttp.ext.auth import install
+from yhttp.ext.auth import install, TokenDecodeError, TokenMissmatchError, \
+    TokenMissingError, TokenExpiredError
 
 
 @freeze_time('2020-01-01 00:00:01')
@@ -35,7 +36,12 @@ def test_oauth2_state(app, httpreq, redis, mocker):
 
     @app.route('/blue')
     def get(req, *, state=None):
-        token = app.auth.oauth2_session_verify(req, state)
+        try:
+            token = app.auth.oauth2_session_verify(req, state)
+        except (TokenDecodeError, TokenMissmatchError, TokenMissingError,
+                TokenExpiredError):
+            raise statuses.unauthorized()
+
         assert token.payload['bar'] == 'baz'
         assert token.redirecturl == '/foo'
 
@@ -55,19 +61,19 @@ def test_oauth2_state(app, httpreq, redis, mocker):
         assert status == 200
 
         when(title='State not sent', query=given - 'state')
-        assert status == 400
+        assert status == 401
 
         when(title='malformed csrf sent via cookies',
              cookies=given | {'yhttp-csrftoken': 'malformed'})
-        assert status == 403
+        assert status == 401
 
         when(title='Malformed state token',
              query=given | dict(state='malformed'))
-        assert status == 400
+        assert status == 401
 
         when(title='csrf not sent via cookie',
              cookies=given - 'yhttp-csrftoken')
-        assert status == 400
+        assert status == 401
 
         with freeze_time('2020-01-01 02:00:00'):
             when(title='state token is expired')
