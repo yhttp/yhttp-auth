@@ -3,4 +3,5 @@ from .token import JWTToken, AccessToken, CSRFToken, RefreshToken
 from .exceptions import AuthException, TokenDecodeError, TokenExpiredError, \
     TokenMissmatchError, TokenMissingError, HeaderMissingError, BlacklistError
 
-__version__ = '9.2.0'
+
+__version__ = '9.2.1'
