@@ -246,6 +246,28 @@ class Authenticator:
 
         return accesstoken
 
+    def middleware(self, request_factory, unauthorized=statuses.unauthorized,
+                   forbidden=statuses.forbidden):
+
+        @functools.wraps(request_factory)
+        def factory(app, environ, response):
+            req = request_factory(app, environ, response)
+            try:
+                req.identity = self.authenticate(req)
+            except (TokenExpiredError, TokenMissingError):
+                req.identity = None
+
+            except TokenDecodeError:
+                self.cookie_token_delete(req, AccessToken)
+                raise unauthorized()
+
+            except BlacklistError:
+                raise forbidden()
+
+            return req
+
+        return factory
+
     def __call__(self, roles=None, unauthorized=statuses.unauthorized,
                  forbidden=statuses.forbidden):
         if isinstance(roles, str):
@@ -254,14 +276,8 @@ class Authenticator:
         def decorator(handler):
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
-                try:
-                    req.identity = self.authenticate(req)
-                except (TokenDecodeError, TokenMissingError,
-                        TokenExpiredError):
+                if req.identity is None:
                     raise unauthorized()
-
-                except BlacklistError:
-                    raise forbidden()
 
                 if roles:
                     if not req.identity.authorize(*roles):
