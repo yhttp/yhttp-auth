@@ -1,4 +1,4 @@
-from bddrest import status, response, when
+from bddrest import status, response, when, given
 from freezegun import freeze_time
 
 from yhttp.core import statuscode, text
@@ -43,7 +43,7 @@ def test_accesstoken(app, httpreq, redis):
         return f'You are {req.identity.id}'
 
     @app.route('/admin')
-    @app.auth(roles='admin, god')
+    @app.auth(roles='admin, god', unauthorized='/login.html?then=%s')
     @text
     def get(req):
         return 'Restricted admin area'
@@ -88,6 +88,14 @@ def test_accesstoken(app, httpreq, redis):
         when(title='User is blacklisted')
         assert status == 403
         app.auth.blacklist_remove('Alice')
+
+        when(title='Redirect to login page and preserve url',
+             path='/admin',
+             verb='GET',
+             cookies=given - 'yhttp-accesstoken'
+             )
+        assert status == 302
+        assert response.headers['location'] == '/login.html?then=/admin'
 
         when(title='Visit unauthorized resource',
              path='/admin',

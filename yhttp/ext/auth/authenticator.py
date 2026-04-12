@@ -277,6 +277,9 @@ class Authenticator:
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
                 if req.identity is None:
+                    if isinstance(unauthorized, str):
+                        raise statuses.found(unauthorized % req.path)
+
                     raise unauthorized()
 
                 if roles:
