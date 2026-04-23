@@ -13,6 +13,7 @@ def test_accesstoken(app, httpreq, redis):
     domain: example.com
     accesstoken:
       maxage: 30
+      leeway: 4
     refreshtoken:
       enabled: false
     ''')
@@ -65,7 +66,7 @@ def test_accesstoken(app, httpreq, redis):
         assert status == 201
         assert response.cookies['yhttp-accesstoken'] == \
             f'{accesstoken_expected}; ' \
-            'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
+            'Domain=example.com; HttpOnly; Max-Age=34; Path=/; ' \
             'SameSite=Strict'
         assert 'yhttp-refreshtoken' not in response.cookies
         accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]

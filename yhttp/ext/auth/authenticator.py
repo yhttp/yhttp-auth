@@ -139,7 +139,7 @@ class Authenticator:
         )
 
         if hasattr(settings, 'maxage'):
-            entry['max-age'] = settings.maxage
+            entry['max-age'] = settings.maxage + settings.leeway
         elif hasattr(settings.cookie, 'maxage'):
             entry['max-age'] = settings.cookie.maxage
 
@@ -183,20 +183,10 @@ class Authenticator:
         )
 
     def session_refresh(self, req):
-        # ensure the access token (even expired) but not invalid
-        accesstoken = self.token_fromcookie(
-            req,
-            AccessToken,
-            verifyexp=False
-        )
-
         refreshtoken = self.token_fromcookie(
             req,
             RefreshToken
         )
-
-        if refreshtoken.id != accesstoken.id:
-            raise TokenMissmatchError()
 
         accesstoken = AccessToken.create_from(refreshtoken)
         self.session_new(req, accesstoken)

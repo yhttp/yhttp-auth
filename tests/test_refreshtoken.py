@@ -15,9 +15,11 @@ def test_refreshtoken(app, httpreq, redis):
     domain: example.com
     accesstoken:
       maxage: 30
+      leeway: 4
     refreshtoken:
       enabled: true
       maxage: 3600
+      leeway: 20
       cookie:
         path: /tokens
     ''')
@@ -67,11 +69,11 @@ def test_refreshtoken(app, httpreq, redis):
         assert status == 201
         assert response.cookies['yhttp-accesstoken'] == \
             f'{accesstoken_expected}; ' \
-            'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
+            'Domain=example.com; HttpOnly; Max-Age=34; Path=/; ' \
             'SameSite=Strict'
         assert response.cookies['yhttp-refreshtoken'] == \
             f'{refreshtoken_expected}; ' \
-            'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
+            'Domain=example.com; HttpOnly; Max-Age=3620; Path=/tokens; ' \
             'SameSite=Strict'
         accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
         refreshtoken = response.cookies['yhttp-refreshtoken'].split(';', 1)[0]
@@ -95,7 +97,7 @@ def test_refreshtoken(app, httpreq, redis):
              cookies={
                  'yhttp-refreshtoken': refreshtoken,
              })
-        assert status == 401
+        assert status == 201
 
         when(title='Try to refresh token with access token but without the '
                    'refreshtoken',
@@ -136,7 +138,7 @@ def test_refreshtoken(app, httpreq, redis):
                  'yhttp-accesstoken': accesstoken,
                  'yhttp-refreshtoken': bob_refreshtoken,
              })
-        assert status == 401
+        assert status == 201
 
         when(title='Try to refresh the access-token',
              path='/tokens',
@@ -148,11 +150,11 @@ def test_refreshtoken(app, httpreq, redis):
         assert status == 201
         assert response.cookies['yhttp-accesstoken'] == \
             f'{accesstoken_expected}; ' \
-            'Domain=example.com; HttpOnly; Max-Age=30; Path=/; ' \
+            'Domain=example.com; HttpOnly; Max-Age=34; Path=/; ' \
             'SameSite=Strict'
         assert response.cookies['yhttp-refreshtoken'] == \
             f'{refreshtoken_expected}; ' \
-            'Domain=example.com; HttpOnly; Max-Age=3600; Path=/tokens; ' \
+            'Domain=example.com; HttpOnly; Max-Age=3620; Path=/tokens; ' \
             'SameSite=Strict'
         accesstoken = response.cookies['yhttp-accesstoken'].split(';', 1)[0]
 
