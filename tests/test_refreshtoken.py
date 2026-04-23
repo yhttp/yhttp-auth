@@ -18,7 +18,8 @@ def test_refreshtoken(app, httpreq, redis):
     refreshtoken:
       enabled: true
       maxage: 3600
-      path: /tokens
+      cookie:
+        path: /tokens
     ''')
     app.ready()
 

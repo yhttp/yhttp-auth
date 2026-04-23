@@ -11,6 +11,8 @@ def test_csrftoken(app, httpreq, redis, mocker):
     domain: example.com
     csrftoken:
       size: 32
+      cookie:
+        path: /red
     ''')
     app.ready()
     mocker.patch(

@@ -21,6 +21,8 @@ def test_oauth2_state(app, httpreq, redis, mocker):
     domain: example.com
     csrftoken:
       size: 32
+      cookie:
+        path: /red
     ''')
     app.ready()
     mocker.patch(

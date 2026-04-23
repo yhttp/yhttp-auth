@@ -93,7 +93,7 @@ class Authenticator:
             httponly=settings.cookie.httponly,
             domain=self._settings.domain,
             samesite=settings.cookie.samesite,
-            path=settings.cookie.path or req.path,
+            path=settings.cookie.path,
             expires='Thu, 01 Jan 1970 00:00:00 GMT'
         )
 
@@ -135,7 +135,7 @@ class Authenticator:
             httponly=settings.cookie.httponly,
             domain=self._settings.domain,
             samesite=settings.cookie.samesite,
-            path=settings.cookie.path or req.path,
+            path=settings.cookie.path,
         )
 
         if hasattr(settings, 'maxage'):
