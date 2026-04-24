@@ -68,14 +68,6 @@ class AccessToken(JWTToken):
     def __init__(self, id, roles=None, **payload):
         super().__init__(id=id, roles=roles or ['user'], **payload)
 
-    # @property
-    # def id(self):
-    #     return self.payload['id']
-
-    # @property
-    # def roles(self):
-    #     return self.payload['roles']
-
     def authorize(self, *roles):
         return set(roles) & set(self.roles)
 
@@ -91,11 +83,3 @@ class RefreshToken(AccessToken):
 class OAuth2StateToken(JWTToken):
     def __init__(self, csrf, redirecturl, **payload):
         super().__init__(csrf=csrf, redirecturl=redirecturl, **payload)
-
-    # @property
-    # def csrf(self):
-    #     return self.payload['csrf']
-
-    # @property
-    # def redirecturl(self):
-    #     return self.payload['redirecturl']

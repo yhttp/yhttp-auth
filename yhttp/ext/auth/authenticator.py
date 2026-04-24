@@ -183,6 +183,13 @@ class Authenticator:
         )
 
     def session_refresh(self, req):
+        """Create and set new access-token based on cookie's refresh-token.
+
+        :raises :class:`TokenMissingError`:
+        :raises :class:`TokenDecodeError`:
+        :raises :class:`TokenExpiredError`:
+        """
+
         refreshtoken = self.token_fromcookie(
             req,
             RefreshToken
