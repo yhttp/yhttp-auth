@@ -1,7 +1,7 @@
 from bddrest import status, response, when
 from freezegun import freeze_time
 
-from yhttp.core import statuscode, text, statuses
+from yhttp.core import statuses, text, statuses
 
 from yhttp.ext.auth import install, AccessToken, RefreshToken, \
     TokenMissingError, TokenDecodeError, TokenMissmatchError, \
@@ -37,13 +37,13 @@ def test_refreshtoken(app, httpreq, redis):
     )
 
     @app.route('/tokens')
-    @statuscode('201 Created')
+    @statuses.created()
     def create(req):
         token = AccessToken('Alice')
         app.auth.session_new(req, token)
 
     @app.route('/tokens')
-    @statuscode('201 Created')
+    @statuses.created()
     def refresh(req):
         try:
             app.auth.session_refresh(req)
@@ -53,7 +53,7 @@ def test_refreshtoken(app, httpreq, redis):
 
     @app.route('/tokens')
     @app.auth()
-    @statuscode('204 No Content')
+    @statuses.nocontent()
     def delete(req):
         app.auth.session_delete(req)
 

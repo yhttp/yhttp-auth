@@ -1,7 +1,7 @@
 from bddrest import status, response, when, given
 from freezegun import freeze_time
 
-from yhttp.core import statuscode, text
+from yhttp.core import text, statuses
 
 from yhttp.ext.auth import install, AccessToken
 
@@ -26,14 +26,14 @@ def test_accesstoken(app, httpreq, redis):
     )
 
     @app.route('/tokens')
-    @statuscode('201 Created')
+    @statuses.created()
     def create(req):
         token = AccessToken('Alice')
         app.auth.session_new(req, token)
 
     @app.route('/tokens')
     @app.auth()
-    @statuscode('204 No Content')
+    @statuses.nocontent()
     def delete(req):
         app.auth.session_delete(req)
 
