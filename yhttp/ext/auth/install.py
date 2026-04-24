@@ -2,7 +2,7 @@ from .authenticator import Authenticator
 from .cli import AuthenticatorCLI
 
 
-def install(app, cliarguments=None):
+def install(app, cliarguments=None, **kw):
     app.cliarguments.append(AuthenticatorCLI)
     if cliarguments:
         AuthenticatorCLI.__arguments__.extend(cliarguments)
@@ -20,4 +20,4 @@ def install(app, cliarguments=None):
         app.auth.shutdown()
 
     app.auth = auth
-    app.request_factory = auth.middleware(app.request_factory)
+    app.request_factory = auth.middleware(app.request_factory, **kw)
