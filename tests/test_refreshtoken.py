@@ -115,7 +115,7 @@ def test_refreshtoken(app, httpreq, redis):
                  'yhttp-accesstoken': 'malformed-token',
                  'yhttp-refreshtoken': refreshtoken,
              })
-        assert status == 401
+        assert status == 201
 
         when(title='Try to refresh token with malformed refresh token',
              path='/tokens',

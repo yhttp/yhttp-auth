@@ -251,15 +251,16 @@ class Authenticator:
             req = request_factory(app, environ, response)
             try:
                 req.identity = self.authenticate(req)
+
             except (TokenExpiredError, TokenMissingError):
                 req.identity = None
 
             except TokenDecodeError:
                 self.cookie_token_delete(req, AccessToken)
-                raise unauthorized()
+                req.identity = None
 
             except BlacklistError:
-                raise forbidden()
+                req.identity = 'blocked'
 
             return req
 
@@ -273,6 +274,9 @@ class Authenticator:
         def decorator(handler):
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
+                if req.identity == 'blocked':
+                    raise forbidden()
+
                 if req.identity is None:
                     if isinstance(unauthorized, str):
                         raise statuses.found(unauthorized % req.path)
