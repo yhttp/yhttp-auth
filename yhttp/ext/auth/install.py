@@ -20,4 +20,4 @@ def install(app, cliarguments=None, **kw):
         app.auth.shutdown()
 
     app.auth = auth
-    app.request_factory = auth.middleware(app.request_factory, **kw)
+    app.request_middlewares.append(auth.request_middleware)

@@ -243,49 +243,35 @@ class Authenticator:
 
         return accesstoken
 
-    def middleware(self, request_factory, unauthorized=statuses.unauthorized,
-                   forbidden=statuses.forbidden):
+    def request_middleware(self, req):
+        try:
+            req.identity = self.authenticate(req)
 
-        @functools.wraps(request_factory)
-        def factory(app, environ, response):
-            req = request_factory(app, environ, response)
-            try:
-                req.identity = self.authenticate(req)
+        except (TokenExpiredError, TokenMissingError):
+            req.identity = None
 
-            except (TokenExpiredError, TokenMissingError):
-                req.identity = None
+        except TokenDecodeError:
+            self.cookie_token_delete(req, AccessToken)
+            req.identity = None
 
-            except TokenDecodeError:
-                self.cookie_token_delete(req, AccessToken)
-                req.identity = None
+        except BlacklistError:
+            raise statuses.forbidden()
 
-            except BlacklistError:
-                req.identity = 'blocked'
-
-            return req
-
-        return factory
-
-    def __call__(self, roles=None, unauthorized=statuses.unauthorized,
-                 forbidden=statuses.forbidden):
+    def __call__(self, roles=None, unauthorized=None, forbidden=None):
         if isinstance(roles, str):
             roles = [i.strip() for i in roles.split(',')]
 
         def decorator(handler):
             @functools.wraps(handler)
             def wrapper(req, *args, **kw):
-                if req.identity == 'blocked':
-                    raise forbidden()
-
                 if req.identity is None:
-                    if isinstance(unauthorized, str):
-                        raise statuses.found(unauthorized % req.path)
-
-                    raise unauthorized()
+                    raise unauthorized(req) if unauthorized \
+                        else statuses.unauthorized()
 
                 if roles:
                     if not req.identity.authorize(*roles):
-                        raise forbidden()
+                        raise forbidden(req) if forbidden \
+                            else statuses.forbidden()
 
                 return handler(req, *args, **kw)
 

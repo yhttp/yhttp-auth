@@ -44,7 +44,10 @@ def test_accesstoken(app, httpreq, redis):
         return f'You are {req.identity.id}'
 
     @app.route('/admin')
-    @app.auth(roles='admin, god', unauthorized='/login.html?then=%s')
+    @app.auth(
+        roles='admin, god',
+        unauthorized=lambda req: statuses.found(f'/login.html?then={req.path}')
+    )
     @text
     def get(req):
         return 'Restricted admin area'
