@@ -17,13 +17,13 @@ def test_oauth2_state(app, httpreq, redis, mocker):
         'CIsInJlZGlyZWN0dXJsIjoiL2ZvbyIsImJhciI6ImJheiIsImV4cCI6MTU3NzgzNjg2' \
         'MX0.19qb3Cnj8RpIQpCUQuxyzzPixyTZf4syvEHtn0pJM9Q'
 
-    app.settings.auth.merge('''
+    app.settings.auth |= '''
     domain: example.com
     csrftoken:
       size: 32
       cookie:
         path: /red
-    ''')
+    '''
     app.ready()
     mocker.patch(
         'os.urandom',

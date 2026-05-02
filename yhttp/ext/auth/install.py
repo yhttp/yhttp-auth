@@ -1,3 +1,5 @@
+from pymlconf import Meld
+
 from .authenticator import Authenticator
 from .cli import AuthenticatorCLI
 
@@ -7,8 +9,7 @@ def install(app, cliarguments=None, **kw):
     if cliarguments:
         AuthenticatorCLI.__arguments__.extend(cliarguments)
 
-    app.settings.merge('auth: {}')
-    app.settings.auth.merge(Authenticator.defaultsettings)
+    app.settings |= Meld(Authenticator.defaultsettings, root='auth')
     auth = Authenticator(app.settings.auth)
 
     @app.when

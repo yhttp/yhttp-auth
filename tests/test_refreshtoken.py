@@ -11,7 +11,7 @@ from yhttp.ext.auth import install, AccessToken, RefreshToken, \
 @freeze_time('2020-01-01 00:00:01')
 def test_refreshtoken(app, httpreq, redis):
     install(app)
-    app.settings.auth.merge('''
+    app.settings.auth |= '''
     domain: example.com
     accesstoken:
       maxage: 30
@@ -22,7 +22,7 @@ def test_refreshtoken(app, httpreq, redis):
       leeway: 20
       cookie:
         path: /tokens
-    ''')
+    '''
     app.ready()
 
     accesstoken_expected = AccessToken('Alice').dumps(

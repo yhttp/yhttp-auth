@@ -7,13 +7,13 @@ from yhttp.ext.auth import install, CSRFToken
 
 def test_csrftoken(app, httpreq, redis, mocker):
     install(app)
-    app.settings.auth.merge('''
+    app.settings.auth |= '''
     domain: example.com
     csrftoken:
       size: 32
       cookie:
         path: /red
-    ''')
+    '''
     app.ready()
     mocker.patch(
         'os.urandom',

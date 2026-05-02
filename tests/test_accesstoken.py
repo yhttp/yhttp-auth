@@ -9,14 +9,14 @@ from yhttp.ext.auth import install, AccessToken
 @freeze_time('2020-01-01 00:00:01')
 def test_accesstoken(app, httpreq, redis):
     install(app)
-    app.settings.auth.merge('''
+    app.settings.auth |= '''
     domain: example.com
     accesstoken:
       maxage: 30
       leeway: 4
     refreshtoken:
       enabled: false
-    ''')
+    '''
     app.ready()
 
     accesstoken_expected = AccessToken('Alice').dumps(
