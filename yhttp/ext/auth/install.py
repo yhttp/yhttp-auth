@@ -1,4 +1,4 @@
-from pymlconf import Meld
+from snam import Meld
 
 from .authenticator import Authenticator
 from .cli import AuthenticatorCLI
