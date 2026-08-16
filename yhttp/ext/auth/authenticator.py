@@ -198,14 +198,14 @@ class Authenticator:
         accesstoken = AccessToken.create_from(refreshtoken)
         self.session_new(req, accesstoken)
 
-    def oauth2_session_new(self, req, redirecturl, payload) -> str:
+    def oauth2_session_new(self, req, redirecturl, payload=None) -> str:
         # generate a new csrf token and store into cookie
         csrftoken = self.csrftoken_create()
         scsrf = self.token_dumps(csrftoken)
         self.cookie_token_set(req, csrftoken)
 
         # generate an state token containing csrf and other info
-        statetoken = OAuth2StateToken(scsrf, redirecturl, **payload)
+        statetoken = OAuth2StateToken(scsrf, redirecturl, **(payload or {}))
         return self.token_dumps(statetoken)
 
     def oauth2_session_verify(self, req, sstatetoken: str):

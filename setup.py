@@ -18,7 +18,7 @@ with open(
 
 
 dependencies = [
-    'yhttp >= 9.1, < 10',
+    'yhttp >= 9.4.2, < 10',
     'pyjwt',
     'redis',
 ]
