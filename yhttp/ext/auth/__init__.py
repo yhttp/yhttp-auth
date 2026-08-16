@@ -4,4 +4,4 @@ from .exceptions import AuthException, TokenDecodeError, TokenExpiredError, \
     TokenMissmatchError, TokenMissingError, HeaderMissingError, BlacklistError
 
 
-__version__ = '11.1.0'
+__version__ = '11.1.1'
