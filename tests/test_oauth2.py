@@ -4,7 +4,7 @@ from freezegun import freeze_time
 
 from yhttp.core import json, statuses
 
-from yhttp.ext.auth import install, TokenDecodeError, TokenMissmatchError, \
+from yhttp.ext.auth import install, TokenDecodeError, TokenMismatchError, \
     TokenMissingError, TokenExpiredError
 
 
@@ -40,7 +40,7 @@ def test_oauth2_state(app, httpreq, redis, mocker):
     def get(req, *, state=None):
         try:
             token = app.auth.oauth2_session_verify(req, state)
-        except (TokenDecodeError, TokenMissmatchError, TokenMissingError,
+        except (TokenDecodeError, TokenMismatchError, TokenMissingError,
                 TokenExpiredError):
             raise statuses.unauthorized()
 

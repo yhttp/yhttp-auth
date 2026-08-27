@@ -4,7 +4,7 @@ from freezegun import freeze_time
 from yhttp.core import statuses, text, statuses
 
 from yhttp.ext.auth import install, AccessToken, RefreshToken, \
-    TokenMissingError, TokenDecodeError, TokenMissmatchError, \
+    TokenMissingError, TokenDecodeError, TokenMismatchError, \
     TokenExpiredError
 
 
@@ -47,7 +47,7 @@ def test_refreshtoken(app, httpreq, redis):
     def refresh(req):
         try:
             app.auth.session_refresh(req)
-        except (TokenMissingError, TokenDecodeError, TokenMissmatchError,
+        except (TokenMissingError, TokenDecodeError, TokenMismatchError,
                 TokenExpiredError):
             raise statuses.unauthorized()
 

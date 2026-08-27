@@ -4,7 +4,7 @@ import functools
 from yhttp.core import statuses
 
 from .exceptions import TokenExpiredError, TokenDecodeError, \
-    TokenMissingError, BlacklistError, TokenMissmatchError
+    TokenMissingError, BlacklistError, TokenMismatchError
 from .token import Token, JWTToken, AccessToken, CSRFToken, RefreshToken, \
     OAuth2StateToken
 
@@ -219,7 +219,7 @@ class Authenticator:
         )
 
         if token.csrf != clientcsrf.value:
-            raise TokenMissmatchError()
+            raise TokenMismatchError()
 
         return token
 

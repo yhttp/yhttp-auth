@@ -10,7 +10,7 @@ class TokenExpiredError(AuthException):
     pass
 
 
-class TokenMissmatchError(AuthException):
+class TokenMismatchError(AuthException):
     pass
 
 
